@@ -27,7 +27,7 @@ namespace Tests
         {
             public ProgramOptions() { }
 
-            public ProgramOptions(int instructionSize, HashSet<Register> affectedRegisters, HashSet<Flag> affectedFlags)
+            public ProgramOptions(int instructionSize, SortedSet<Register> affectedRegisters, SortedSet<Flag> affectedFlags)
             {
                 InstructionSize = instructionSize;
                 AffectedRegisters = affectedRegisters;
@@ -35,18 +35,18 @@ namespace Tests
             }
 
             public ProgramOptions(int instructionSize, params Register[] affectedRegisters)
-                : this(instructionSize, new HashSet<Register>(affectedRegisters), new HashSet<Flag>())
+                : this(instructionSize, new SortedSet<Register>(affectedRegisters), new SortedSet<Flag>())
             { }
 
             public int InstructionSize = 1;
-            public HashSet<Register> AffectedRegisters = new HashSet<Register>();
-            public HashSet<Flag> AffectedFlags = new HashSet<Flag>();
+            public SortedSet<Register> AffectedRegisters = new SortedSet<Register>();
+            public SortedSet<Flag> AffectedFlags = new SortedSet<Flag>();
         }
 
         private void SetProgramAndStep(ProgramOptions options, params byte[] program)
         {
-            var changedFlags = new HashSet<Flag>();
-            var changedRegisters = new HashSet<Register>();
+            var changedFlags = new SortedSet<Flag>();
+            var changedRegisters = new SortedSet<Register>();
 
             _emulator.FlagChanged += (_, args) => { changedFlags.Add(args.Flag); };
             _emulator.RegisterChanged += (_, args) => { changedRegisters.Add(args.Register); };
@@ -57,8 +57,8 @@ namespace Tests
 
             Assert.AreEqual(0x400 + options.InstructionSize, _emulator.ProgramCounter);
 
-            CollectionAssert.AreEqual(options.AffectedFlags.OrderBy(x => x).ToArray(), changedFlags.OrderBy(x => x).ToArray());
-            CollectionAssert.AreEqual(options.AffectedRegisters.OrderBy(x => x).ToArray(), changedRegisters.OrderBy(x => x).ToArray());
+            CollectionAssert.AreEqual(options.AffectedFlags, changedFlags);
+            CollectionAssert.AreEqual(options.AffectedRegisters, changedRegisters);
         }
 
         // ------------------ 0x00 - 0x0F
