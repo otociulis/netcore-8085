@@ -29,6 +29,7 @@ namespace Tests
 
             Assert.AreEqual(0x404, emulator.ProgramCounter);
             Assert.AreEqual(0x14, emulator[Register.A]);
+            Assert.IsFalse(emulator[Flag.P]);
 
             emulator.Step();
 
@@ -40,6 +41,7 @@ namespace Tests
 
             Assert.AreEqual(0x406, emulator.ProgramCounter);
             Assert.AreEqual(0x9D, emulator[Register.A]);
+            Assert.IsTrue(emulator[Flag.P]);
 
             emulator.Step();
 
@@ -62,7 +64,7 @@ namespace Tests
         public void ExchangingMemoryLocations()
         {
             var program = new byte[] {
-                0x3a, 0x00, 0x50, 0x47, 0x3A, 0x00, 0x60, 0x32,
+                0x3A, 0x00, 0x50, 0x47, 0x3A, 0x00, 0x60, 0x32,
                 0x00, 0x50, 0x78, 0x32, 0x00, 0x60, 0x76
             };
             var emulator = new Emulator();

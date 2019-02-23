@@ -41,6 +41,7 @@ namespace Core
                 }
             }
         }
+        
         #endregion
         #region this[Flag flag]
         public bool this[Flag flag]
@@ -187,6 +188,22 @@ namespace Core
                     }
                     break;
             }
+        }
+
+        private void UpdateAcumulatorFlags()
+        {
+            var accumulator = this[Register.A];
+            var onesCount = 0;
+            onesCount += (accumulator & 0x01) == 0x00 ? 0 : 1;
+            onesCount += (accumulator & 0x02) == 0x00 ? 0 : 1;
+            onesCount += (accumulator & 0x04) == 0x00 ? 0 : 1;
+            onesCount += (accumulator & 0x08) == 0x00 ? 0 : 1;
+            onesCount += (accumulator & 0x10) == 0x00 ? 0 : 1;
+            onesCount += (accumulator & 0x20) == 0x00 ? 0 : 1;
+            onesCount += (accumulator & 0x40) == 0x00 ? 0 : 1;
+            onesCount += (accumulator & 0x80) == 0x00 ? 0 : 1;
+
+            this[Flag.P] = onesCount % 2 == 1;
         }
 
         public void Run()
