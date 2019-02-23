@@ -41,7 +41,7 @@ namespace Core
                 }
             }
         }
-        
+
         #endregion
         #region this[Flag flag]
         public bool this[Flag flag]
@@ -118,11 +118,31 @@ namespace Core
                     throw new InvalidOperationException($"Unknown opcode 0x{opcode.ToString("X2")} at address 0x{ProgramCounter.ToString("X4")}");
                 case 0x00: // NOP 
                     break;
+                case 0x01: // LXI B
+                    this[Register.C] = _memory[ProgramCounter++];
+                    this[Register.B] = _memory[ProgramCounter++];
+                    break;
+                case 0x02: // STAX B
+                    _memory[Get16BitAddress(Register.B, Register.C)] = this[Register.A];
+                    break;
+                case 0x03: // INX B
+                    IncrementPair(Register.B, Register.C);
+                    break;
                 case 0x06: // MVI B
                     this[Register.B] = _memory[ProgramCounter++];
                     break;
                 case 0x0E: // MVI C
                     this[Register.C] = _memory[ProgramCounter++];
+                    break;
+                case 0x11: // LXI D
+                    this[Register.E] = _memory[ProgramCounter++];
+                    this[Register.D] = _memory[ProgramCounter++];
+                    break;
+                case 0x12: // STAX D
+                    _memory[Get16BitAddress(Register.D, Register.E)] = this[Register.A];
+                    break;
+                case 0x13: // INX D
+                    IncrementPair(Register.D, Register.E);
                     break;
                 case 0x16: // MVI D
                     this[Register.D] = _memory[ProgramCounter++];
@@ -136,11 +156,7 @@ namespace Core
                     break;
 
                 case 0x23: // INX H
-                    this[Register.L]++;
-                    if (this[Register.L] == 0)
-                    {
-                        this[Register.H]++;
-                    }
+                    IncrementPair(Register.H, Register.L);
                     break;
                 case 0x32: // STA
                     _memory[GetMemoryAddressAtNextAddress()] = this[Register.A];
@@ -188,6 +204,12 @@ namespace Core
                     }
                     break;
             }
+        }
+
+        private void IncrementPair(Register upper, Register lower)
+        {
+            this[lower]++;
+            this[upper] += (byte)((this[lower] == 0) ? 1 : 0);
         }
 
         private void UpdateAcumulatorFlags()

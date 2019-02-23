@@ -3,7 +3,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using System.Text;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace Tests
 {
@@ -16,11 +15,6 @@ namespace Tests
         public void Initialize()
         {
             _assembler = new Assembler();
-            var q = "test".GroupBy(x => x).Select(g => new
-            {
-                Letter = g.Key,
-                Count = g.Count()
-            }).Where(x => x.Letter == 'e').SingleOrDefault();
         }
 
         [TestCleanup]
