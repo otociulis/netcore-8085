@@ -2,6 +2,8 @@ using Core;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using System.Text;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Tests
 {
@@ -14,6 +16,11 @@ namespace Tests
         public void Initialize()
         {
             _assembler = new Assembler();
+            var q = "test".GroupBy(x => x).Select(g => new
+            {
+                Letter = g.Key,
+                Count = g.Count()
+            }).Where(x => x.Letter == 'e').SingleOrDefault();
         }
 
         [TestCleanup]
@@ -309,6 +316,50 @@ CC START", 0xDC, 0x00, 0x00);
 
         // ------------------ 0xE0 - 0xEF
 
+        [TestMethod] public void RPO() => CompileAndCompare(@"RPO", 0xE0);
+        [TestMethod] public void POP_H() => CompileAndCompare(@"POP H", 0xE1);
+        [TestMethod] public void JPO() => CompileAndCompare(@"START:
+JPO START", 0xE2, 0x00, 0x00);
+        [TestMethod] public void XTHL() => CompileAndCompare(@"XTHL", 0xE3);
+        [TestMethod] public void CPO() => CompileAndCompare(@"START:
+CPO START", 0xE4, 0x00, 0x00);
+        [TestMethod] public void PUSH_H() => CompileAndCompare(@"PUSH H", 0xE5);
+        [TestMethod] public void ANI() => CompileAndCompare(@"ANI 92H", 0xE6, 0x92);
+        [TestMethod] public void RST_4() => CompileAndCompare(@"RST 4", 0xE7);
+        [TestMethod] public void RPE() => CompileAndCompare(@"RPE", 0xE8);
+        [TestMethod] public void PCHL() => CompileAndCompare(@"PCHL", 0xE9);
+        [TestMethod] public void JPE() => CompileAndCompare(@"START:
+JPE START", 0xEA, 0x00, 0x00);
+        [TestMethod] public void XCHG() => CompileAndCompare(@"XCHG", 0xEB);
+        [TestMethod] public void CPE() => CompileAndCompare(@"START:
+CPE START", 0xEC, 0x00, 0x00);
+        // 0xED is not an opcode
+        [TestMethod] public void XRI() => CompileAndCompare(@"XRI 92H", 0xEE, 0x92);
+        [TestMethod] public void RST_5() => CompileAndCompare(@"RST 5", 0xEF);
+
+        // ------------------ 0xF0 - 0xFF
+
+        [TestMethod] public void RP() => CompileAndCompare(@"RP", 0xF0);
+        [TestMethod] public void POP_PSW() => CompileAndCompare(@"POP PSW", 0xF1);
+        [TestMethod] public void JP() => CompileAndCompare(@"START:
+JP START", 0xF2, 0x00, 0x00);
+        [TestMethod] public void DI() => CompileAndCompare(@"DI", 0xF3);
+        [TestMethod] public void CP() => CompileAndCompare(@"START:
+CP START", 0xF4, 0x00, 0x00);
+        [TestMethod] public void PUSH_PSW() => CompileAndCompare(@"PUSH PSW", 0xF5);
+        [TestMethod] public void ORI() => CompileAndCompare(@"ORI 92H", 0xF6, 0x92);
+        [TestMethod] public void RST_6() => CompileAndCompare(@"RST 6", 0xF7);
+        [TestMethod] public void RM() => CompileAndCompare(@"RM", 0xF8);
+        [TestMethod] public void SPHL() => CompileAndCompare(@"SPHL", 0xF9);
+        [TestMethod] public void JM() => CompileAndCompare(@"START:
+JM START", 0xFA, 0x00, 0x00);
+        [TestMethod] public void EI() => CompileAndCompare(@"EI", 0xFB);
+        [TestMethod] public void CM() => CompileAndCompare(@"START:
+CM START", 0xFC, 0x00, 0x00);
+        // 0xFD is not an opcode
+        [TestMethod] public void CPI() => CompileAndCompare(@"CPI 92H", 0xFE, 0x92);
+        [TestMethod] public void RST_7() => CompileAndCompare(@"RST 7", 0xFF);
+
         [TestMethod, ExpectedException(typeof(InvalidDataException))]
         public void LXI_B_NoAddress() => CompileAndCompare(@"LXI B");
 
@@ -360,6 +411,8 @@ CC START", 0xDC, 0x00, 0x00);
         [TestMethod, ExpectedException(typeof(InvalidDataException))]
         public void SBI_NoValue() => CompileAndCompare(@"SBI");
 
+        [TestMethod, ExpectedException(typeof(InvalidDataException))]
+        public void ANI_NoValue() => CompileAndCompare(@"ANI");
 
 
         [TestMethod]
