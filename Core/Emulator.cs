@@ -98,20 +98,32 @@ namespace Core
             Array.Copy(program, 0, _memory, address, program.Length);
         }
 
-        private ushort Get16BitValue(Register upper, Register lower)
+        ushort Get16BitValue(Register upper, Register lower)
         {
             return (ushort)((this[upper] << 8) + this[lower]);
         }
 
-        private void Set16BitValue(Register upper, Register lower, ushort value)
+        void Set16BitValue(Register upper, Register lower, ushort value)
         {
             this[upper] = (byte)(value >> 8);
             this[lower] = (byte)(value & 0xFF);
         }
 
-        private ushort GetMemoryAddressAtNextAddress()
+        ushort GetMemoryAddressAtNextAddress()
         {
             return (ushort)(_memory[ProgramCounter++] + _memory[ProgramCounter++] << 8);
+        }
+
+        void ExecuteActionOnRegister(byte opcode, byte bRegisterOpcode, Action<Register> action)
+        {
+            var offset = (opcode - bRegisterOpcode) / 8;
+            action(offset == 7 ? Register.A : (Register)(1 + offset));
+        }
+
+        void ExecuteActionOnRegisterPair(byte opcode, byte bRegisterOpcode, byte divisor, Action<Register, Register> action)
+        {
+            var lower = (Register)(1 + (opcode - bRegisterOpcode) / divisor);
+            action(lower, lower + 1);
         }
 
         public void Step()
@@ -125,74 +137,98 @@ namespace Core
                 case 0x00: // NOP 
                     break;
                 case 0x01: // LXI B
-                    this[Register.C] = _memory[ProgramCounter++];
-                    this[Register.B] = _memory[ProgramCounter++];
+                case 0x11: // LXI D
+                case 0x21: // LXI H
+                    ExecuteActionOnRegisterPair(opcode, 0x01, 0x08, (lower, upper) =>
+                    {
+                        this[upper] = _memory[ProgramCounter++];
+                        this[lower] = _memory[ProgramCounter++];
+                    });
                     break;
                 case 0x02: // STAX B
-                    _memory[Get16BitValue(Register.B, Register.C)] = this[Register.A];
+                case 0x12: // STAX D
+                    ExecuteActionOnRegisterPair(opcode, 0x02, 0x08, (lower, upper) =>
+                    {
+                        _memory[Get16BitValue(lower, upper)] = this[Register.A];
+                    });                    
                     break;
                 case 0x03: // INX B
-                    IncrementPair(Register.B, Register.C);
+                case 0x13: // INX D
+                case 0x23: // INX H
+                    ExecuteActionOnRegisterPair(opcode, 0x03, 0x08, (lower, upper) =>
+                    {
+                        IncrementPair(lower);
+                    });
                     break;
                 case 0x04: // INR B
-                    IncrementRegister(Register.B);
+                case 0x0C: // INR C
+                case 0x14: // INR D
+                case 0x1C: // INR E
+                case 0x24: // INR H
+                case 0x2C: // INR L
+                case 0x3C: // INR A
+                    ExecuteActionOnRegister(opcode, 0x04, IncrementRegister);
                     break;
                 case 0x05: // DCR B
-                    DecrementRegister(Register.B);
+                case 0x0D: // DCR C
+                case 0x15: // DCR D
+                case 0x1D: // DCR E
+                case 0x25: // DCR H
+                case 0x2D: // DCR L
+                case 0x3D: // DCR A
+                    ExecuteActionOnRegister(opcode, 0x05, DecrementRegister);
                     break;
                 case 0x06: // MVI B
-                    this[Register.B] = _memory[ProgramCounter++];
+                case 0x0E: // MVI C
+                case 0x16: // MVI D
+                case 0x1E: // MVI E
+                case 0x26: // MVI H
+                case 0x2E: // MVI L
+                case 0x3E: // MVI A
+                    ExecuteActionOnRegister(opcode, 0x06, r => { this[r] = _memory[ProgramCounter++]; });
                     break;
                 case 0x07: // RLC
                     this[Flag.C] = (this[Register.A] & 0x80) == 0x80;
                     this[Register.A] = (byte)((byte)(this[Register.A] << 1) + (byte)(this[Flag.C] ? 1 : 0));
                     break;
-                case 0x09: //DAD B
-                    AddRegisterPairToHLRegisters(Register.B, Register.C);
+                case 0x09: // DAD B
+                case 0x19: // DAD D
+                case 0x29: // DAD H
+                    ExecuteActionOnRegisterPair(opcode, 0x09, 0x08, AddRegisterPairToHLRegisters);
                     break;
                 case 0x0A: // LDAX B
-                    this[Register.A] = _memory[Get16BitValue(Register.B, Register.C)];
+                case 0x1A: // LDAX D
+                    ExecuteActionOnRegisterPair(opcode, 0x0A, 0x08, (lower, upper) =>
+                    {
+                        this[Register.A] = _memory[Get16BitValue(lower, upper)];
+                    });
                     break;
                 case 0x0B: // DCX B
-                    Set16BitValue(Register.B, Register.C, (ushort)(Get16BitValue(Register.B, Register.C) - 1));
-                    break;
-                case 0x0C: // INR C
-                    IncrementRegister(Register.C);
-                    break;
-                case 0x0D: // DCR C
-                    DecrementRegister(Register.C);
-                    break;
-                case 0x0E: // MVI C
-                    this[Register.C] = _memory[ProgramCounter++];
+                case 0x1B: // DCX D
+                case 0x2B: // DCX H
+                    ExecuteActionOnRegisterPair(opcode, 0x09, 0x08, (lower, upper) =>
+                    {
+                        Set16BitValue(lower, upper, (ushort)(Get16BitValue(lower, upper) - 1));
+                    });
                     break;
                 case 0x0F: // RRC
                     this[Flag.C] = (this[Register.A] & 0x01) == 0x01;
                     this[Register.A] = (byte)((byte)(this[Register.A] >> 1) + (byte)(this[Flag.C] ? 0x80 : 0));
                     break;
-                case 0x11: // LXI D
-                    this[Register.E] = _memory[ProgramCounter++];
-                    this[Register.D] = _memory[ProgramCounter++];
-                    break;
-                case 0x12: // STAX D
-                    _memory[Get16BitValue(Register.D, Register.E)] = this[Register.A];
-                    break;
-                case 0x13: // INX D
-                    IncrementPair(Register.D, Register.E);
-                    break;
-                case 0x16: // MVI D
-                    this[Register.D] = _memory[ProgramCounter++];
-                    break;
-                case 0x1E: // MVI E
-                    this[Register.E] = _memory[ProgramCounter++];
-                    break;
-                case 0x21: // LXI H
-                    this[Register.L] = _memory[ProgramCounter++];
-                    this[Register.H] = _memory[ProgramCounter++];
-                    break;
-
-                case 0x23: // INX H
-                    IncrementPair(Register.H, Register.L);
-                    break;
+                case 0x17: // RAL
+                    {
+                        var carry = (byte)(this[Flag.C] ? 1 : 0);
+                        this[Flag.C] = (this[Register.A] & 0x80) == 0x80;
+                        this[Register.A] = (byte)((this[Register.A] << 1) + carry);
+                        break;
+                    }
+                case 0x1F: // RAR
+                    {
+                        var carry = (byte)(this[Flag.C] ? 0x80 : 0);
+                        this[Flag.C] = (this[Register.A] & 0x01) == 0x01;
+                        this[Register.A] = (byte)((this[Register.A] >> 1) + carry);
+                        break;
+                    }
                 case 0x32: // STA
                     _memory[GetMemoryAddressAtNextAddress()] = this[Register.A];
                     break;
@@ -270,8 +306,9 @@ namespace Core
             UpdateSignFlag(this[register]);
         }
 
-        void IncrementPair(Register upper, Register lower)
+        void IncrementPair(Register upper)
         {
+            var lower = upper + 1;
             this[lower]++;
             this[upper] += (byte)((this[lower] == 0) ? 1 : 0);
         }

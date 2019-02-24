@@ -97,10 +97,39 @@ namespace Tests
         [TestMethod, ExpectedException(typeof(InvalidOperationException))] public void Invalid_0x10() { SetProgramAndStep(new ProgramOptions(), 0x10); }
         [TestMethod] public void LXI_D() { LXI(0x11, Register.D, Register.E); }
         [TestMethod] public void STAX_D() { STAX(0x12, Register.D, Register.E); }
+        [TestMethod] public void INX_D() { INX(0x13, Register.D, Register.E); }
+        [TestMethod] public void INR_D() { INR(0x14, Register.D); }
+        [TestMethod] public void DCR_D() { DCR(0x15, Register.D); }
+        [TestMethod] public void MVI_D() { MVI(0x16, Register.D); }
+        [TestMethod]
+        public void RAL()
+        {
+            _emulator[Register.A] = 0xA7;
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.A }, new Flag[] { Flag.C }), 0x17);
+            Assert.AreEqual(0x4E, _emulator[Register.A]);
+        }
+        [TestMethod, ExpectedException(typeof(InvalidOperationException))] public void Invalid_0x18() { SetProgramAndStep(new ProgramOptions(), 0x18); }
+        [TestMethod] public void DAD_D() { DAD(0x19, Register.D, Register.E); }
+        [TestMethod] public void LDAX_D() { LDAX(0x1A, Register.D, Register.E); }
+        [TestMethod] public void DCX_D() { DCX(0x1B, Register.D, Register.E); }
+        [TestMethod] public void INR_E() { INR(0x1C, Register.E); }
+        [TestMethod] public void DCR_E() { DCR(0x1D, Register.E); }
+        [TestMethod] public void MVI_E() { MVI(0x1E, Register.E); }
+        [TestMethod]
+        public void RAR()
+        {
+            _emulator[Register.A] = 0xA7;
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.A }, new Flag[] { Flag.C }), 0x1F);
+            Assert.AreEqual(0x53, _emulator[Register.A]);
+        }
 
-        // ------------------ 0x21 - 0x2F
+        // ------------------ 0x20 - 0x2F
 
         [TestMethod] public void LXI_H() { LXI(0x21, Register.H, Register.L); }
+
+        // ------------------ 0x30 - 0x3F
+
+        [TestMethod] public void INR_A() { INR(0x3C, Register.A); }
 
 
         void LXI(byte opcode, Register upper, Register lower)
