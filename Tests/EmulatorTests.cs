@@ -27,15 +27,15 @@ namespace Tests
         {
             public ProgramOptions() { }
 
-            public ProgramOptions(int instructionSize, SortedSet<Register> affectedRegisters, SortedSet<Flag> affectedFlags)
+            public ProgramOptions(int instructionSize, Register[] affectedRegisters, Flag[] affectedFlags)
             {
                 InstructionSize = instructionSize;
-                AffectedRegisters = affectedRegisters;
-                AffectedFlags = affectedFlags;
+                AffectedRegisters = new SortedSet<Register>(affectedRegisters);
+                AffectedFlags = new SortedSet<Flag>(affectedFlags);
             }
 
             public ProgramOptions(int instructionSize, params Register[] affectedRegisters)
-                : this(instructionSize, new SortedSet<Register>(affectedRegisters), new SortedSet<Flag>())
+                : this(instructionSize, affectedRegisters, new Flag[] { })
             { }
 
             public int InstructionSize = 1;
@@ -67,10 +67,34 @@ namespace Tests
         [TestMethod] public void LXI_B() { LXI(0x01, Register.B, Register.C); }
         [TestMethod] public void STAX_B() { STAX(0x02, Register.B, Register.C); }
         [TestMethod] public void INX_B() { INX(0x03, Register.B, Register.C); }
+        [TestMethod] public void INR_B() { INR(0x04, Register.B); }
+        [TestMethod] public void DCR_B() { DCR(0x05, Register.B); }
+        [TestMethod] public void MVI_B() { MVI(0x06, Register.B); }
+        [TestMethod]
+        public void RLC()
+        {
+            _emulator[Register.A] = 0xA7;
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.A }, new Flag[] { Flag.C }), 0x07);
+            Assert.AreEqual(0x4F, _emulator[Register.A]);
+        }
+        [TestMethod, ExpectedException(typeof(InvalidOperationException))] public void Invalid_0x08() { SetProgramAndStep(new ProgramOptions(), 0x08); }
+        [TestMethod] public void DAD_B() { DAD(0x09, Register.B, Register.C); }
+        [TestMethod] public void LDAX_B() { LDAX(0x0A, Register.B, Register.C); }
+        [TestMethod] public void DCX_B() { DCX(0x0B, Register.B, Register.C); }
+        [TestMethod] public void INR_C() { INR(0x0C, Register.C); }
+        [TestMethod] public void DCR_C() { DCR(0x0D, Register.C); }
+        [TestMethod] public void MVI_C() { MVI(0x0E, Register.C); }
+        [TestMethod]
+        public void RRC()
+        {
+            _emulator[Register.A] = 0xA7;
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.A }, new Flag[] { Flag.C }), 0x0F);
+            Assert.AreEqual(0xD3, _emulator[Register.A]);
+        }
 
         // ------------------ 0x10 - 0x1F
 
-        [TestMethod, ExpectedException(typeof(InvalidOperationException))] public void x10_Invalid() { SetProgramAndStep(new ProgramOptions(), 0x10); }
+        [TestMethod, ExpectedException(typeof(InvalidOperationException))] public void Invalid_0x10() { SetProgramAndStep(new ProgramOptions(), 0x10); }
         [TestMethod] public void LXI_D() { LXI(0x11, Register.D, Register.E); }
         [TestMethod] public void STAX_D() { STAX(0x12, Register.D, Register.E); }
 
@@ -78,7 +102,7 @@ namespace Tests
 
         [TestMethod] public void LXI_H() { LXI(0x21, Register.H, Register.L); }
 
-        
+
         void LXI(byte opcode, Register upper, Register lower)
         {
             SetProgramAndStep(new ProgramOptions(3, lower, upper), opcode, 0x05, 0x20);
@@ -104,6 +128,69 @@ namespace Tests
             Assert.AreEqual(0x00, _emulator[lower]);
         }
 
+        void INR(byte opcode, Register register)
+        {
+            // Test that Carry flag is not set
+            _emulator[register] = 0xFF;
+            _emulator[Flag.S] = true;
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { register }, new Flag[] { Flag.S, Flag.Z, Flag.P, Flag.AC }), opcode);
+            Assert.AreEqual(0x00, _emulator[register]);
+            Assert.IsFalse(_emulator[Flag.S]);
+            Assert.IsTrue(_emulator[Flag.Z]);
+            Assert.IsTrue(_emulator[Flag.P]);
+            Assert.IsTrue(_emulator[Flag.AC]);
+        }
+
+        void DCR(byte opcode, Register register)
+        {
+            // Test that Carry flag is not set
+            _emulator[register] = 0x00;
+            _emulator[Flag.Z] = true;
+            _emulator[Flag.AC] = true;
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { register }, new Flag[] { Flag.S, Flag.Z, Flag.P, Flag.AC }), opcode);
+            Assert.AreEqual(0xFF, _emulator[register]);
+            Assert.IsTrue(_emulator[Flag.S]);
+            Assert.IsFalse(_emulator[Flag.Z]);
+            Assert.IsFalse(_emulator[Flag.AC]);
+            Assert.IsTrue(_emulator[Flag.P]);
+        }
+
+        void DCX(byte opcode, Register upper, Register lower)
+        {
+            // Test that Carry flag is not set
+            _emulator[upper] = 0xA2;
+            _emulator[lower] = 0x34;
+            SetProgramAndStep(new ProgramOptions(1, lower), opcode);
+            Assert.AreEqual(0x33, _emulator[lower]);
+        }
+
+        private void DAD(byte opcode, Register upper, Register lower)
+        {
+            _emulator[Register.H] = 0xFF;
+            _emulator[Register.L] = 0xFF;
+            _emulator[lower] = 0x01;
+
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.H, Register.L }, new Flag[] { Flag.C }), opcode);
+            Assert.IsTrue(_emulator[Flag.C]);
+            Assert.AreEqual(0x00, _emulator[Register.H]);
+            Assert.AreEqual(0x00, _emulator[Register.L]);
+        }
+
+        private void LDAX(byte opcode, Register upper, Register lower)
+        {
+            _emulator.SetMemory(0x2050, 0x9F);
+            _emulator[upper] = 0x20;
+            _emulator[lower] = 0x50;
+
+            SetProgramAndStep(new ProgramOptions(1, Register.A), opcode);
+            Assert.AreEqual(0x9F, _emulator[Register.A]);
+        }
+
+        private void MVI(byte opcode, Register register)
+        {
+            SetProgramAndStep(new ProgramOptions(2, register), opcode, 0x92);
+            Assert.AreEqual(0x92, _emulator[register]);
+        }
 
         [TestMethod]
         public void AddingTwo8BitNumbers()
