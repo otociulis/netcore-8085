@@ -173,7 +173,7 @@ namespace Tests
         [TestMethod] public void MOV_M_E() => CompileAndCompare(@"MOV M,E", 0x73);
         [TestMethod] public void MOV_M_H() => CompileAndCompare(@"MOV M,H", 0x74);
         [TestMethod] public void MOV_M_L() => CompileAndCompare(@"MOV M,L", 0x75);
-        [TestMethod] public void MOV_M_M() => CompileAndCompare(@"MOV M,M", 0x76);
+        [TestMethod] public void HLT() => CompileAndCompare(@"HLT", 0x76);
         [TestMethod] public void MOV_M_A() => CompileAndCompare(@"MOV M,A", 0x77);
         [TestMethod] public void MOV_A_B() => CompileAndCompare(@"MOV A,B", 0x78);
         [TestMethod] public void MOV_A_C() => CompileAndCompare(@"MOV A,C", 0x79);
@@ -282,7 +282,7 @@ JZ START", 0xCA, 0x00, 0x00);
 CZ START", 0xCC, 0x00, 0x00);
         [TestMethod] public void CALL() => CompileAndCompare(@"START:
 CALL START", 0xCD, 0x00, 0x00);
-        // 0xCE is not an opcode
+        [TestMethod] public void ACI() => CompileAndCompare(@"ACI 92H", 0xCE, 0x92);
         [TestMethod] public void RST_1() => CompileAndCompare(@"RST 1", 0xCF);
 
         // ------------------ 0xD0 - 0xDF
@@ -407,6 +407,8 @@ CM START", 0xFC, 0x00, 0x00);
 
         [TestMethod, ExpectedException(typeof(InvalidDataException))]
         public void ANI_NoValue() => CompileAndCompare(@"ANI");
+
+        [TestMethod, ExpectedException(typeof(InvalidDataException))] public void MOV_M_M() => CompileAndCompare(@"MOV M,M", 0x76);
 
 
         [TestMethod]

@@ -14,15 +14,17 @@ namespace FrontEnd
             var registers = new FrameView("Registers") { X = 0, Width = 22, Height = 11 };
             var programCounterLabel = new Register16BitLabel() { Y = 5, X = 11 };
             var acumulatorRegisterLabel = new Register8BitLabel() { X = 14 };
-            var hlRegisterLabel = new Register16BitLabel() { Y = 3, X = 11 };
+            var bcRegisterLabel = new Register16BitLabel() { X = 11, Y = 3, };
+            var hlRegisterLabel = new Register16BitLabel() { X = 11, Y = 1, };
+            var deRegisterLabel = new Register16BitLabel() { X = 11, Y = 2, };
 
             registers.Add(
                 new Label("A") { X = 1 },
                 acumulatorRegisterLabel,
                 new Label("BC") { X = 1, Y = 1 },
-                new Register16BitLabel() { Y = 1, X = 11 },
+                bcRegisterLabel,
                 new Label("DE") { X = 1, Y = 2 },
-                new Register16BitLabel() { Y = 2, X = 11 },
+                deRegisterLabel,
                 new Label("HL") { X = 1, Y = 3 },
                 hlRegisterLabel,
                 new Label("PSW") { X = 1, Y = 4 },
@@ -53,9 +55,10 @@ namespace FrontEnd
             top.Add(registers, flags, new Button("Step")
             {
                 Clicked = () => emulator.Step(),
-                X = 1, Y = 12
+                X = 1,
+                Y = 12
             });
-            
+
             var program = new byte[] { 0x21, 0x05, 0x30, 0x7E, 0x23, 0x86, 0x23, 0x77, 0x76 };
             emulator.SetMemory(0x0, program);
             emulator.SetMemory(0x3005, 0x14, 0x89);
@@ -67,6 +70,14 @@ namespace FrontEnd
                 {
                     case Register.A:
                         acumulatorRegisterLabel.SetValue(eventArgs.Value);
+                        break;
+                    case Register.B:
+                    case Register.C:
+                        bcRegisterLabel.SetValue(emulator[Register.B], emulator[Register.C]);
+                        break;
+                    case Register.D:
+                    case Register.E:
+                        deRegisterLabel.SetValue(emulator[Register.D], emulator[Register.E]);
                         break;
                     case Register.H:
                     case Register.L:

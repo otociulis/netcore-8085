@@ -1,14 +1,35 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 
 namespace Core
 {
     public class Emulator
     {
+        class InstructionMetadata
+        {
+            public Register? Register { get; set; }
+            public InstructionAttribute Attribute { get; private set; }
+            public FieldInfo FieldInfo { get; private set; }
+
+            public InstructionMetadata(InstructionAttribute attribute, FieldInfo fieldInfo)
+            {
+                FieldInfo = fieldInfo;
+                Attribute = attribute;
+            }
+
+            public InstructionMetadata(InstructionMetadata metadata, Register register) : this(metadata.Attribute, metadata.FieldInfo)
+            {
+                Register = register;
+            }
+        }
+
         private const int HaltOpCode = 0x76;
         private byte[] _memory;
         private readonly Dictionary<Register, byte> _registers = new Dictionary<Register, byte>();
         private readonly Dictionary<Flag, bool> _flags = new Dictionary<Flag, bool>();
+        static Dictionary<byte, InstructionMetadata> InstructionSet = new Dictionary<byte, InstructionMetadata>();
 
         #region ProgramCounter
         private ushort _programCounter;
@@ -21,6 +42,21 @@ namespace Core
                 {
                     _programCounter = value;
                     ProgramCounterChanged?.Invoke(this, _programCounter);
+                }
+            }
+        }
+        #endregion
+        #region StackPointer
+        private ushort _stackPointer;
+        public ushort StackPointer
+        {
+            get => _stackPointer;
+            set
+            {
+                if (_stackPointer != value)
+                {
+                    _stackPointer = value;
+                    StackPointerChanged?.Invoke(this, _stackPointer);
                 }
             }
         }
@@ -76,8 +112,42 @@ namespace Core
 
         public event EventHandler Halted;
         public event EventHandler<ushort> ProgramCounterChanged;
+        public event EventHandler<ushort> StackPointerChanged;
         public event EventHandler<RegisterChangedEventArgs> RegisterChanged;
         public event EventHandler<FlagChangedEventArgs> FlagChanged;
+
+        static Emulator()
+        {
+            foreach (var fieldInfo in typeof(InstructionSet).GetFields())
+            {
+                var attribute = fieldInfo.GetCustomAttributes(false).Cast<InstructionAttribute>().FirstOrDefault();
+                if (attribute != null)
+                {
+                    var metadata = new InstructionMetadata(attribute, fieldInfo);
+                    switch (attribute.OperandType)
+                    {
+                        case OperandType.None:
+                        case OperandType.Data16Bit:
+                            InstructionSet.Add(attribute.Code, metadata);
+                            break;
+                        case OperandType.RegisterOrMemory:
+                            InstructionSet.Add((byte)(attribute.Code + 0x06 * attribute.InstructionSpacing), metadata);
+                            foreach (Register key in Enum.GetValues(typeof(Register)))
+                            {
+                                var offset = (byte)(attribute.Code + (int)key * attribute.InstructionSpacing);
+                                InstructionSet.Add(offset, new InstructionMetadata(metadata, key));
+                            }
+                            break;
+                        case OperandType.RegisterPairOrStackPointer:
+                            InstructionSet.Add(attribute.Code, new InstructionMetadata(metadata, Register.B));
+                            InstructionSet.Add((byte)(attribute.Code + 0x10), new InstructionMetadata(metadata, Register.D));
+                            InstructionSet.Add((byte)(attribute.Code + 0x20), new InstructionMetadata(metadata, Register.H));
+                            InstructionSet.Add((byte)(attribute.Code + 0x30), metadata);
+                            break;
+                    }
+                }
+            }
+        }
 
         public Emulator(int memorySize = 64 * 1024)
         {
@@ -129,8 +199,50 @@ namespace Core
         public void Step()
         {
             var opcode = _memory[ProgramCounter++];
+            var operand = new byte[0];
 
-            switch (opcode)
+            if (InstructionSet.ContainsKey(opcode))
+            {
+                var metadata = InstructionSet[opcode];
+
+                switch (metadata.Attribute.OperandType)
+                {
+                    case OperandType.Index:
+                    case OperandType.None:
+                    case OperandType.Register:
+                    case OperandType.RegisterBD:
+                    case OperandType.RegisterOrMemory:
+                    case OperandType.RegisterPairOrProgramStatusWord:
+                    case OperandType.RegisterPairOrStackPointer:
+                        break;
+                    case OperandType.Data16Bit:
+                    case OperandType.LabelAs16BitAddress:
+                        operand = new byte[] { _memory[ProgramCounter++], _memory[ProgramCounter++] };
+                        break;
+                    case OperandType.Data8Bit:
+                        operand = new byte[] { _memory[ProgramCounter++] };
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unknown operand type {metadata.Attribute.OperandType} at address 0x{ProgramCounter.ToString("X4")}");
+                }
+
+                var executor = metadata.FieldInfo.GetValue(null);
+                (executor as Action)?.Invoke();
+                (executor as Action<Emulator, Register?>)?.Invoke(this, metadata.Register);
+
+                if (operand.Length == 2)
+                {
+                    (executor as Action<Emulator, byte, byte>)?.Invoke(this, operand[0], operand[1]);
+                }
+
+                if (operand.Length == 1)
+                {
+                    (executor as Action<Emulator, byte>)?.Invoke(this, operand[0]);
+                }
+
+            }
+
+            /*switch (opcode)
             {
                 default:
                     throw new InvalidOperationException($"Unknown opcode 0x{opcode.ToString("X2")} at address 0x{ProgramCounter.ToString("X4")}");
@@ -150,7 +262,7 @@ namespace Core
                     ExecuteActionOnRegisterPair(opcode, 0x02, 0x08, (lower, upper) =>
                     {
                         _memory[Get16BitValue(lower, upper)] = this[Register.A];
-                    });                    
+                    });
                     break;
                 case 0x03: // INX B
                 case 0x13: // INX D
@@ -276,7 +388,7 @@ namespace Core
                         }
                         break;
                     }
-            }
+            }*/
         }
 
         private void AddRegisterPairToHLRegisters(Register upper, Register lower)
@@ -313,17 +425,17 @@ namespace Core
             this[upper] += (byte)((this[lower] == 0) ? 1 : 0);
         }
 
-        void UpdateZeroFlag(byte value)
+        internal void UpdateZeroFlag(byte value)
         {
             this[Flag.Z] = value == 0;
         }
 
-        void UpdateSignFlag(byte value)
+        internal void UpdateSignFlag(byte value)
         {
             this[Flag.S] = (value & 0x80) == 0x80;
         }
 
-        void UpdateAuxiliaryCarryFlag(byte a, byte b, bool increment)
+        internal void UpdateAuxiliaryCarryFlag(byte a, byte b, bool increment)
         {
             var valueLower = a & 0xF;
             var previousLower = b & 0xF;
@@ -331,7 +443,7 @@ namespace Core
             this[Flag.AC] = increment ? (valueLower + previousLower > 0xF) : (valueLower - previousLower > valueLower);
         }
 
-        void UpdateParityFlag(byte value)
+        internal void UpdateParityFlag(byte value)
         {
             var onesCount = 0;
             onesCount += (value & 0x01) == 0x00 ? 0 : 1;

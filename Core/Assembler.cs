@@ -17,7 +17,7 @@ namespace Core
     {
         static Dictionary<string, byte> RegisterOffsets = new Dictionary<string, byte>();
         static Dictionary<string, byte> RegisterPairOffsets = new Dictionary<string, byte>();
-        static Dictionary<string, byte> StackRegisterOffsets = new Dictionary<string, byte>();
+        static Dictionary<string, InstructionAttribute> InstructionSet = new Dictionary<string, InstructionAttribute>();
 
         static byte Parse8BitValue(string value)
         {
@@ -59,90 +59,6 @@ namespace Core
             return new byte[] { (byte)(result & 0xFF), (byte)(result >> 8 & 0xFF) };
         }
 
-        static byte OpcodeWithRegister(string register, byte baseValue, byte multiplier)
-        {
-            if (!RegisterOffsets.ContainsKey(register))
-            {
-                throw new InvalidDataException($"Expected valid register name, found {register}");
-            }
-
-            return (byte)(baseValue + RegisterOffsets[register] * multiplier);
-        }
-
-        private byte[] OpcodeWithRegisterPair(string[] args, byte opcode, bool bdOnly = false)
-        {
-            ThrowIfInvalidNumberOfOperands(args, 1);
-
-            if (!RegisterPairOffsets.ContainsKey(args[0]))
-            {
-                throw new InvalidDataException($"Expected register pair B/D/H/SP, found {args[0]}");
-            }
-
-            if (bdOnly && args[0] != "b" && args[0] != "d")
-            {
-                throw new InvalidDataException($"Expected register pair B/D, found {args[0]}");
-            }
-
-            return new byte[] { (byte)(opcode + RegisterPairOffsets[args[0]]) };
-        }
-
-        private byte[] OpcodeWithStackRegister(string[] args, byte opcode)
-        {
-            ThrowIfInvalidNumberOfOperands(args, 1);
-
-            if (!StackRegisterOffsets.ContainsKey(args[0]))
-            {
-                throw new InvalidDataException($"Expected register pair B/D/H/PSW, found {args[0]}");
-            }
-
-            return new byte[] { (byte)(opcode + StackRegisterOffsets[args[0]]) };
-        }
-
-        private byte[] OpcodeWithIndex(string[] args, byte opcode)
-        {
-            ThrowIfInvalidNumberOfOperands(args, 1);
-
-            ushort index;
-            if (!ushort.TryParse(args[0], out index))
-            {
-                throw new InvalidDataException($"Expected number, found {args[0]}");
-            }
-
-            if (index > 7)
-            {
-                throw new InvalidDataException($"Expected value between 0-7, found {index}");
-            }
-
-            return new byte[] { (byte)(opcode + 8 * index) };
-        }
-
-        static void ThrowIfInvalidNumberOfOperands(string[] args, uint expected)
-        {
-            if (args.Length != expected)
-            {
-                throw new InvalidDataException($"Expected {expected} operand(s), found {args.Length}");
-            }
-        }
-
-        static byte[] OpcodeWithRegisterOperand(string[] args, byte baseOpcode, byte multiplier = 1)
-        {
-            ThrowIfInvalidNumberOfOperands(args, 1);
-            return new byte[] { OpcodeWithRegister(args[0], baseOpcode, multiplier) };
-        }
-
-        static byte[] OpcodeWith16BitAddress(string[] args, byte opcode)
-        {
-            ThrowIfInvalidNumberOfOperands(args, 1);
-            var address = Parse16BitValue(args[0]);
-            return new byte[] { opcode, address[0], address[1] };
-        }
-
-        private byte[] OpcodeWith8BitValue(string[] args, byte opcode)
-        {
-            ThrowIfInvalidNumberOfOperands(args, 1);
-            return new byte[] { opcode, Parse8BitValue(args[0]) };
-        }
-
         static Assembler()
         {
             RegisterOffsets.Add("a", 0x07);
@@ -152,17 +68,20 @@ namespace Core
             RegisterOffsets.Add("e", 0x03);
             RegisterOffsets.Add("h", 0x04);
             RegisterOffsets.Add("l", 0x05);
-            RegisterOffsets.Add("m", 0x06);
 
             RegisterPairOffsets.Add("b", 0x00);
             RegisterPairOffsets.Add("d", 0x10);
             RegisterPairOffsets.Add("h", 0x20);
-            RegisterPairOffsets.Add("sp", 0x30);
 
-            StackRegisterOffsets.Add("b", 0x00);
-            StackRegisterOffsets.Add("d", 0x10);
-            StackRegisterOffsets.Add("h", 0x20);
-            StackRegisterOffsets.Add("psw", 0x30);
+            foreach (var fieldInfo in typeof(InstructionSet).GetFields())
+            {
+                var attribute = fieldInfo.GetCustomAttributes(false).Cast<InstructionAttribute>().FirstOrDefault();
+                if (attribute != null)
+                {
+                    var instructionName = string.Join(' ', fieldInfo.Name.Split('_'));
+                    InstructionSet.Add(instructionName.ToLowerInvariant(), attribute);
+                }
+            }
         }
 
         public AssemblyResult Compile(Stream stream)
@@ -256,121 +175,104 @@ namespace Core
             };
         }
 
-        private byte[] ProcessOpCode(byte address, string opcode, string[] args, Dictionary<short, string> labelUsages)
+        byte InstructionRegisterOffset(string operand, bool memoryAllowed)
         {
-            switch (opcode)
+            if (RegisterOffsets.ContainsKey(operand))
             {
-                // case "aci": 
-                case "adc": return OpcodeWithRegisterOperand(args, 0x88);
-                case "add": return OpcodeWithRegisterOperand(args, 0x80);
-                case "adi": return OpcodeWith8BitValue(args, 0xc6);
-                case "ana": return OpcodeWithRegisterOperand(args, 0xA0);
-                case "ani": return OpcodeWith8BitValue(args, 0xE6);
-                case "call": return OpcodeWithLabel(args, address, labelUsages, 0xCD);
-                case "cc": return OpcodeWithLabel(args, address, labelUsages, 0xDC);
-                case "cm": return OpcodeWithLabel(args, address, labelUsages, 0xFC);
-                case "cma": return new byte[] { 0x2f };
-                case "cmc": return new byte[] { 0x3f };
-                case "cmp": return OpcodeWithRegisterOperand(args, 0xB8);
-                case "cnc": return OpcodeWithLabel(args, address, labelUsages, 0xD4);
-                case "cnz": return OpcodeWithLabel(args, address, labelUsages, 0xC4);
-                case "cp": return OpcodeWithLabel(args, address, labelUsages, 0xF4);
-                case "cpe": return OpcodeWithLabel(args, address, labelUsages, 0xEC);
-                case "cpi": return OpcodeWith8BitValue(args, 0xFE);
-                case "cpo": return OpcodeWithLabel(args, address, labelUsages, 0xE4);
-                case "cz": return OpcodeWithLabel(args, address, labelUsages, 0xCC);
-                case "daa": return new byte[] { 0x27 };
-                case "dad": return OpcodeWithRegisterPair(args, 0x09);
-                case "dcr": return OpcodeWithRegisterOperand(args, 0x05, 8);
-                case "dcx": return OpcodeWithRegisterPair(args, 0x0B);
-                case "di": return new byte[] { 0xF3 };
-                case "ei": return new byte[] { 0xFB };
-                case "hlt": return new byte[] { 0x76 };
-                case "in": return OpcodeWith8BitValue(args, 0xDB);
-                case "inr": return OpcodeWithRegisterOperand(args, 0x04, 8);
-                case "inx": return OpcodeWithRegisterPair(args, 0x03);
-                case "jc": return OpcodeWithLabel(args, address, labelUsages, 0xDA);
-                case "lda": return OpcodeWith16BitAddress(args, 0x3A);
-                case "ldax": return OpcodeWithRegisterPair(args, 0x0A, true);
-                case "lhld": return OpcodeWith16BitAddress(args, 0x2A);
-                case "jm": return OpcodeWithLabel(args, address, labelUsages, 0xFA);
-                case "jmp": return OpcodeWithLabel(args, address, labelUsages, 0xC3);
-                case "jnc": return OpcodeWithLabel(args, address, labelUsages, 0xD2);
-                case "jnz": return OpcodeWithLabel(args, address, labelUsages, 0xC2);
-                case "jp": return OpcodeWithLabel(args, address, labelUsages, 0xF2);
-                case "jpe": return OpcodeWithLabel(args, address, labelUsages, 0xEA);
-                case "jpo": return OpcodeWithLabel(args, address, labelUsages, 0xE2);
-                case "jz": return OpcodeWithLabel(args, address, labelUsages, 0xCA);
-                case "lxi b": return OpcodeWith16BitAddress(args, 0x01);
-                case "lxi d": return OpcodeWith16BitAddress(args, 0x11);
-                case "lxi h": return OpcodeWith16BitAddress(args, 0x21);
-                case "lxi sp": return OpcodeWith16BitAddress(args, 0x31);
-                case "mov a": return OpcodeWithRegisterOperand(args, 0x78);
-                case "mov b": return OpcodeWithRegisterOperand(args, 0x40);
-                case "mov c": return OpcodeWithRegisterOperand(args, 0x48);
-                case "mov d": return OpcodeWithRegisterOperand(args, 0x50);
-                case "mov e": return OpcodeWithRegisterOperand(args, 0x58);
-                case "mov h": return OpcodeWithRegisterOperand(args, 0x60);
-                case "mov l": return OpcodeWithRegisterOperand(args, 0x68);
-                case "mov m": return OpcodeWithRegisterOperand(args, 0x70);
-                case "mvi a": return OpcodeWith8BitValue(args, 0x3e);
-                case "mvi b": return OpcodeWith8BitValue(args, 0x06);
-                case "mvi c": return OpcodeWith8BitValue(args, 0x0e);
-                case "mvi d": return OpcodeWith8BitValue(args, 0x16);
-                case "mvi e": return OpcodeWith8BitValue(args, 0x1e);
-                case "mvi h": return OpcodeWith8BitValue(args, 0x26);
-                case "mvi l": return OpcodeWith8BitValue(args, 0x2e);
-                case "mvi m": return OpcodeWith8BitValue(args, 0x36);
-                case "nop": return new byte[] { 0x00 };
-                case "ora": return OpcodeWithRegisterOperand(args, 0xB0);
-                case "ori": return OpcodeWith8BitValue(args, 0xF6);
-                case "out": return OpcodeWith8BitValue(args, 0xD3);
-                case "pchl": return new byte[] { 0xE9 };
-                case "pop": return OpcodeWithStackRegister(args, 0xC1);
-                case "push": return OpcodeWithStackRegister(args, 0xC5);
-                case "ral": return new byte[] { 0x17 };
-                case "rar": return new byte[] { 0x1F };
-                case "ret": return new byte[] { 0xC9 };
-                case "rlc": return new byte[] { 0x07 };
-                case "rim": return new byte[] { 0x20 };
-                case "rnc": return new byte[] { 0xD0 };
-                case "rnz": return new byte[] { 0xC0 };
-                case "rpe": return new byte[] { 0xE8 };
-                case "rpo": return new byte[] { 0xE0 };
-                case "rrc": return new byte[] { 0x0F };
-                case "rst": return OpcodeWithIndex(args, 0xC7);
-                case "rc": return new byte[] { 0xD8 };
-                case "rm": return new byte[] { 0xF8 };
-                case "rp": return new byte[] { 0xF0 };
-                case "rz": return new byte[] { 0xC8 };
-                case "sbb": return OpcodeWithRegisterOperand(args, 0x98);
-                case "sbi": return OpcodeWith8BitValue(args, 0xDE);
-                case "shld": return OpcodeWith16BitAddress(args, 0x22);
-                case "sim": return new byte[] { 0x30 };
-                case "sphl": return new byte[] { 0xF9 };
-                case "sta": return OpcodeWith16BitAddress(args, 0x32);
-                case "stc": return new byte[] { 0x37 };
-                case "stax": return OpcodeWithRegisterPair(args, 0x02, true);
-                case "sub": return OpcodeWithRegisterOperand(args, 0x90);
-                case "sui": return OpcodeWith8BitValue(args, 0xD6);
-
-                case "xchg": return new byte[] { 0xEB };
-                case "xra": return OpcodeWithRegisterOperand(args, 0xA8);
-                case "xri": return OpcodeWith8BitValue(args, 0xEE);
-                case "xthl": return new byte[] { 0xE3 };
-
-
-
+                return RegisterOffsets[operand];
+            }
+            else if (memoryAllowed && operand == "m")
+            {
+                return 0x6;
             }
 
-            throw new InvalidDataException($"Invalid opcode {opcode}");
+            if (memoryAllowed)
+            {
+                throw new InvalidDataException($"Expected valid register name or memory indicator, found {operand}");
+            }
+
+            throw new InvalidDataException($"Expected valid register name, found {operand}");
         }
 
-        private byte[] OpcodeWithLabel(string[] args, byte address, Dictionary<short, string> labelUsages, byte opcode)
+        byte InstructionRegisterPairOffset(string operand, string additionalRegister)
         {
-            ThrowIfInvalidNumberOfOperands(args, 1);
-            labelUsages.Add(address, args[0]);
-            return new byte[] { opcode, 0xFF, 0xFF }; // Place temporary address value that will be replaced in label address in last pass
+            if (RegisterPairOffsets.ContainsKey(operand))
+            {
+                return RegisterPairOffsets[operand];
+            }
+            else if (operand == additionalRegister)
+            {
+                return 0x30;
+            }
+
+            throw new InvalidDataException($"Expected register pair B/D/H/{additionalRegister}, found {operand}");
+        }
+
+        private byte[] ProcessOpCode(byte address, string opcode, string[] args, Dictionary<short, string> labelUsages)
+        {
+            if (!InstructionSet.ContainsKey(opcode))
+            {
+                throw new InvalidDataException($"Invalid opcode {opcode}");
+            }
+
+            var instruction = InstructionSet[opcode];
+            var operand = string.Empty;
+
+            if (instruction.OperandType != OperandType.None)
+            {
+                if (args.Length == 1)
+                {
+                    operand = args[0];
+                }
+                else
+                {
+                    throw new InvalidDataException($"Expected operand but none was found");
+                }
+            }
+
+            switch (instruction.OperandType)
+            {
+                case OperandType.None:
+                    return new byte[] { instruction.Code };
+                case OperandType.Data8Bit:
+                    return new byte[] { instruction.Code, Parse8BitValue(args[0]) };
+                case OperandType.Data16Bit:
+                    var operandAsAddress = Parse16BitValue(operand);
+                    return new byte[] { instruction.Code, operandAsAddress[0], operandAsAddress[1] };
+                case OperandType.LabelAs16BitAddress:
+                    labelUsages.Add(address, args[0]);
+                    return new byte[] { instruction.Code, 0xFF, 0xFF }; // Place temporary address value that will be replaced in label address in last pass
+                case OperandType.RegisterOrMemory:
+                    return new byte[] { (byte)(instruction.Code + InstructionRegisterOffset(operand, true) * instruction.InstructionSpacing) };
+                case OperandType.Register:
+                    return new byte[] { (byte)(instruction.Code + InstructionRegisterOffset(operand, false) * instruction.InstructionSpacing) };
+                case OperandType.RegisterPairOrStackPointer:
+                    return new byte[] { (byte)(instruction.Code + InstructionRegisterPairOffset(args[0], "sp")) };
+                case OperandType.RegisterPairOrProgramStatusWord:
+                    return new byte[] { (byte)(instruction.Code + InstructionRegisterPairOffset(args[0], "psw")) };
+                case OperandType.RegisterBD:
+                    if (operand != "b" && operand != "d")
+                    {
+                        throw new InvalidDataException($"Expected register pair B/D, found {args[0]}");
+                    }
+
+                    return new byte[] { (byte)(instruction.Code + RegisterPairOffsets[operand]) };
+                case OperandType.Index:
+                    ushort index;
+                    if (!ushort.TryParse(args[0], out index))
+                    {
+                        throw new InvalidDataException($"Expected number, found {args[0]}");
+                    }
+
+                    if (index > 7)
+                    {
+                        throw new InvalidDataException($"Expected value between 0-7, found {index}");
+                    }
+
+                    return new byte[] { (byte)(instruction.Code + 8 * index) };
+                default:
+                    throw new InvalidDataException($"Invalid operand type {instruction.OperandType}");
+            }
         }
     }
 }
