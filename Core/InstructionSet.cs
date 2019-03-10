@@ -50,7 +50,10 @@ namespace Core
         public static readonly object CNZ;
 
         [Instruction(0x2F, OperandType.None)]
-        public static readonly object CMA;
+        public static readonly Action<Emulator> CMA = emulator =>
+        {
+            emulator[Register.A] = (byte)(0xFF - emulator[Register.A]);
+        };
 
         [Instruction(0x3F, OperandType.None)]
         public static readonly object CMC;
@@ -64,14 +67,44 @@ namespace Core
         [Instruction(0x27, OperandType.None)]
         public static readonly object DAA;
 
-        [Instruction(0x09, OperandType.RegisterPairOrStackPointer)]
-        public static readonly object DAD;
+        [Instruction(0x09, OperandType.RegisterPairOrStackPointer, Description = "Add register pair to H and L registers")]
+        public static readonly Action<Emulator, Register?> DAD = (emulator, register) =>
+        {
+            var hlValue = emulator.Get16BitValue(Register.H, Register.L);
+            ushort value = 0;
+            if (register.HasValue)
+            {
+                value = emulator.Get16BitValue(register.Value, register.Value + 1);
+            }
+            else
+            {
+                value = emulator.StackPointer;
+            }
+
+            value += hlValue;
+            emulator[Flag.C] = value < hlValue;
+            emulator[Register.H] = (byte)(value >> 8);
+            emulator[Register.L] = (byte)(value & 0xFF);
+        };
 
         [Instruction(0x05, OperandType.RegisterOrMemory, InstructionSpacing = 0x08)]
-        public static readonly object DCR;
+        public static readonly Action<Emulator, Register?> DCR = (emulator, register) => IncrementSourceBy(emulator, register, -1);
 
-        [Instruction(0x0B, OperandType.RegisterPairOrStackPointer)]
-        public static readonly object DCX;
+        [Instruction(0x0B, OperandType.RegisterPairOrStackPointer, Description = "Decrement register pair by 1")]
+        public static readonly Action<Emulator, Register?> DCX = (emulator, register) =>
+        {
+            if (register.HasValue)
+            {
+                var upper = register.Value;
+                var lower = upper + 1;
+                emulator[lower]--;
+                emulator[upper] -= (byte)((emulator[lower] == 0xFF) ? 1 : 0);
+            }
+            else
+            {
+                emulator.StackPointer--;
+            }
+        };
 
         [Instruction(0xF3, OperandType.None)]
         public static readonly object DI;
@@ -86,24 +119,7 @@ namespace Core
         public static readonly object IN;
 
         [Instruction(0x04, OperandType.RegisterOrMemory, InstructionSpacing = 0x08)]
-        public static readonly Action<Emulator, Register?> INR = (emulator, reg) =>
-        {
-            if (reg.HasValue)
-            {
-                var register = reg.Value;
-                emulator.UpdateAuxiliaryCarryFlag(emulator[register], 1, true);
-
-                emulator[register]++;
-                emulator.UpdateParityFlag(emulator[register]);
-                emulator.UpdateZeroFlag(emulator[register]);
-                emulator.UpdateSignFlag(emulator[register]);
-            }
-            else
-            {
-                INX(emulator, Register.H);
-            }
-        };
-
+        public static readonly Action<Emulator, Register?> INR = (emulator, register) => IncrementSourceBy(emulator, register, 1);
 
         [Instruction(0x03, OperandType.RegisterPairOrStackPointer)]
         public static readonly Action<Emulator, Register?> INX = (emulator, register) =>
@@ -151,11 +167,20 @@ namespace Core
         [Instruction(0x3A, OperandType.Data16Bit)]
         public static readonly object LDA;
 
-        [Instruction(0x0A, OperandType.RegisterBD)]
-        public static readonly object LDAX;
+        [Instruction(0x0A, OperandType.RegisterBD, Description = "Load accumulator indirect")]
+        public static readonly Action<Emulator, Register> LDAX = (emulator, register) =>
+        {
+            var address = emulator.Get16BitValue(register, register + 1);
+            emulator[Register.A] = emulator[address];
+        };
 
         [Instruction(0x2A, OperandType.Data16Bit)]
-        public static readonly object LHLD;
+        public static readonly Action<Emulator, byte, byte> LHLD = (emulator, lower, upper) =>
+        {
+            var address = (upper << 8) + lower;
+            emulator[Register.L] = emulator[(ushort)address];
+            emulator[Register.H] = emulator[(ushort)(address + 1)];
+        };
 
         [Instruction(0x01, OperandType.Data16Bit)]
         public static readonly Action<Emulator, byte, byte> LXI_B = (emulator, lower, upper) =>
@@ -206,28 +231,28 @@ namespace Core
         public static readonly object MOV_M;
 
         [Instruction(0x3E, OperandType.Data8Bit)]
-        public static readonly object MVI_A;
+        public static readonly Action<Emulator, byte> MVI_A = (emulator, data) => MoveImmediate(emulator, Register.A, data);
 
         [Instruction(0x06, OperandType.Data8Bit)]
-        public static readonly object MVI_B;
+        public static readonly Action<Emulator, byte> MVI_B = (emulator, data) => MoveImmediate(emulator, Register.B, data);
 
         [Instruction(0x0E, OperandType.Data8Bit)]
-        public static readonly object MVI_C;
+        public static readonly Action<Emulator, byte> MVI_C = (emulator, data) => MoveImmediate(emulator, Register.C, data);
 
         [Instruction(0x16, OperandType.Data8Bit)]
-        public static readonly object MVI_D;
+        public static readonly Action<Emulator, byte> MVI_D = (emulator, data) => MoveImmediate(emulator, Register.D, data);
 
         [Instruction(0x1E, OperandType.Data8Bit)]
-        public static readonly object MVI_E;
+        public static readonly Action<Emulator, byte> MVI_E = (emulator, data) => MoveImmediate(emulator, Register.E, data);
 
         [Instruction(0x26, OperandType.Data8Bit)]
-        public static readonly object MVI_H;
+        public static readonly Action<Emulator, byte> MVI_H = (emulator, data) => MoveImmediate(emulator, Register.H, data);
 
         [Instruction(0x2E, OperandType.Data8Bit)]
-        public static readonly object MVI_L;
+        public static readonly Action<Emulator, byte> MVI_L = (emulator, data) => MoveImmediate(emulator, Register.L, data);
 
         [Instruction(0x36, OperandType.Data8Bit)]
-        public static readonly object MVI_M;
+        public static readonly Action<Emulator, byte> MVI_M = (emulator, data) => MoveImmediate(emulator, null, data);
 
         [Instruction(0x00, OperandType.None)]
         public static readonly Action NOP = () => { };
@@ -302,9 +327,14 @@ namespace Core
         public static readonly object SBI;
 
         [Instruction(0x22, OperandType.Data16Bit)]
-        public static readonly object SHLD;
+        public static readonly Action<Emulator, byte, byte> SHLD = (emulator, lower, upper) =>
+        {
+            var address = (upper << 8) + lower;
+            emulator[(ushort)(address)] = emulator[Register.L];
+            emulator[(ushort)(address + 1)] = emulator[Register.H];
+        };
 
-        [Instruction(0x30, OperandType.None)]
+    [Instruction(0x30, OperandType.None)]
         public static readonly object SIM;
 
         [Instruction(0xF9, OperandType.None)]
@@ -336,5 +366,38 @@ namespace Core
 
         [Instruction(0xE3, OperandType.None)]
         public static readonly object XTHL;
+
+        private static void IncrementSourceBy(Emulator emulator, Register? register, int increment)
+        {
+            var memoryAddress = emulator.Get16BitValue(Register.H, Register.L);
+            var current = register.HasValue ? emulator[register.Value] : emulator[memoryAddress];
+
+            emulator[Flag.AC] = current.AuxiliaryCarryFlag(1, true);
+            current = (byte)(current + increment);
+            emulator[Flag.P] = current.ParityFlag();
+            emulator[Flag.Z] = current == 0;
+            emulator[Flag.S] = current.SignFlag();
+
+            if (register.HasValue)
+            {
+                emulator[register.Value] = current;
+            }
+            else
+            {
+                emulator[memoryAddress] = current;
+            }
+        }
+
+        private static void MoveImmediate(Emulator emulator, Register? register, byte value)
+        {
+            if (register.HasValue)
+            {
+                emulator[register.Value] = value;
+            }
+            else
+            {
+                emulator[emulator.Get16BitValue(Register.H, Register.L)] = value;
+            }
+        }
     }
 }

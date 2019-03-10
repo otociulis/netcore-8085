@@ -36,7 +36,7 @@ namespace Core
         public ushort ProgramCounter
         {
             get => _programCounter;
-            set
+            internal set
             {
                 if (_programCounter != value)
                 {
@@ -51,12 +51,27 @@ namespace Core
         public ushort StackPointer
         {
             get => _stackPointer;
-            set
+            internal set
             {
                 if (_stackPointer != value)
                 {
                     _stackPointer = value;
                     StackPointerChanged?.Invoke(this, _stackPointer);
+                }
+            }
+        }
+        #endregion
+        #region InterruptMask
+        private byte _interruptMask;
+        public byte InterruptMask
+        {
+            get => _interruptMask;
+            internal set
+            {
+                if (_interruptMask != value)
+                {
+                    _interruptMask = value;
+                    InterruptMaskChanged?.Invoke(this, _interruptMask);
                 }
             }
         }
@@ -68,7 +83,7 @@ namespace Core
             {
                 return _registers[register];
             }
-            set
+            internal set
             {
                 if (_registers[register] != value)
                 {
@@ -86,7 +101,7 @@ namespace Core
             {
                 return _flags[flag];
             }
-            set
+            internal set
             {
                 if (_flags[flag] != value)
                 {
@@ -103,7 +118,7 @@ namespace Core
             {
                 return _memory[address];
             }
-            set
+            internal set
             {
                 _memory[address] = value;
             }
@@ -115,6 +130,7 @@ namespace Core
         public event EventHandler<ushort> StackPointerChanged;
         public event EventHandler<RegisterChangedEventArgs> RegisterChanged;
         public event EventHandler<FlagChangedEventArgs> FlagChanged;
+        public event EventHandler<byte> InterruptMaskChanged;
 
         static Emulator()
         {
@@ -127,8 +143,15 @@ namespace Core
                     switch (attribute.OperandType)
                     {
                         case OperandType.None:
+                        case OperandType.Data8Bit:
+                            InstructionSet.Add(attribute.Code, metadata);
+                            break;
                         case OperandType.Data16Bit:
                             InstructionSet.Add(attribute.Code, metadata);
+                            break;
+                        case OperandType.RegisterBD:
+                            InstructionSet.Add(attribute.Code, new InstructionMetadata(metadata, Register.B));
+                            InstructionSet.Add((byte)(attribute.Code + 0x10), new InstructionMetadata(metadata, Register.D));
                             break;
                         case OperandType.RegisterOrMemory:
                             InstructionSet.Add((byte)(attribute.Code + 0x06 * attribute.InstructionSpacing), metadata);
@@ -168,7 +191,7 @@ namespace Core
             Array.Copy(program, 0, _memory, address, program.Length);
         }
 
-        ushort Get16BitValue(Register upper, Register lower)
+        internal ushort Get16BitValue(Register upper, Register lower)
         {
             return (ushort)((this[upper] << 8) + this[lower]);
         }
@@ -201,8 +224,11 @@ namespace Core
             var opcode = _memory[ProgramCounter++];
             var operand = new byte[0];
 
-            if (InstructionSet.ContainsKey(opcode))
+            if (!InstructionSet.ContainsKey(opcode))
             {
+                throw new InvalidOperationException($"Unknown opcode 0x{opcode.ToString("X2")} at address 0x{ProgramCounter.ToString("X4")}");
+            }
+            else { 
                 var metadata = InstructionSet[opcode];
 
                 switch (metadata.Attribute.OperandType)
@@ -228,7 +254,13 @@ namespace Core
 
                 var executor = metadata.FieldInfo.GetValue(null);
                 (executor as Action)?.Invoke();
+                (executor as Action<Emulator>)?.Invoke(this);
                 (executor as Action<Emulator, Register?>)?.Invoke(this, metadata.Register);
+
+                if (metadata.Register.HasValue)
+                {
+                    (executor as Action<Emulator, Register>)?.Invoke(this, metadata.Register.Value);
+                }
 
                 if (operand.Length == 2)
                 {

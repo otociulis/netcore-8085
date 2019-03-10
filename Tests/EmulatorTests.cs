@@ -125,11 +125,61 @@ namespace Tests
 
         // ------------------ 0x20 - 0x2F
 
+        [TestMethod]
+        public void RIM()
+        {
+            _emulator.InterruptMask = 0x24;
+            SetProgramAndStep(new ProgramOptions(1, Register.A), 0x20);
+            Assert.AreEqual(0x24, _emulator[Register.A]);
+        }
         [TestMethod] public void LXI_H() { LXI(0x21, Register.H, Register.L); }
+        [TestMethod]
+        public void SHLD()
+        {
+            _emulator[Register.H] = 0x01;
+            _emulator[Register.L] = 0x02;
+
+            SetProgramAndStep(new ProgramOptions(3), 0x22, 0x50, 0x20);
+
+            Assert.AreEqual(0x02, _emulator[0x2050]);
+            Assert.AreEqual(0x01, _emulator[0x2051]);
+        }
+        [TestMethod] public void INX_H() { INX(0x23, Register.H, Register.L); }
+        [TestMethod] public void INR_H() { INR(0x24, Register.H); }
+        [TestMethod] public void DCR_H() { DCR(0x25, Register.H); }
+        [TestMethod] public void MVI_H() { MVI(0x26, Register.H); }
+        [TestMethod] public void DAA() { throw new NotImplementedException(); }
+        [TestMethod, ExpectedException(typeof(InvalidOperationException))] public void Invalid_0x28() { SetProgramAndStep(new ProgramOptions(), 0x28); }
+        [TestMethod] public void DAD_H() { DAD(0x29, Register.H, Register.L); }
+        [TestMethod]
+        public void LHLD()
+        {
+            _emulator[0x2050] = 0x01;
+            _emulator[0x2051] = 0x02;
+
+            SetProgramAndStep(new ProgramOptions(3, Register.H, Register.L), 0x2A, 0x50, 0x20);
+
+            Assert.AreEqual(0x02, _emulator[Register.H]);
+            Assert.AreEqual(0x01, _emulator[Register.L]);
+        }
+        [TestMethod] public void DCX_H() { DCX(0x2B, Register.H, Register.L); }
+        [TestMethod] public void INR_L() { INR(0x2C, Register.L); }
+        [TestMethod] public void DCR_L() { DCR(0x2D, Register.L); }
+        [TestMethod] public void MVI_L() { MVI(0x2E, Register.L); }
+        [TestMethod]
+        public void CMA()
+        {
+            _emulator[Register.A] = 0x89;
+
+            SetProgramAndStep(new ProgramOptions(1, Register.A), 0x2F);
+
+            Assert.AreEqual(0x76, _emulator[Register.A]);
+        }
 
         // ------------------ 0x30 - 0x3F
 
         [TestMethod] public void INR_A() { INR(0x3C, Register.A); }
+        [TestMethod] public void DCR_A() { DCR(0x3D, Register.A); }
 
 
         void LXI(byte opcode, Register upper, Register lower)
@@ -201,8 +251,9 @@ namespace Tests
 
             SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.H, Register.L }, new Flag[] { Flag.C }), opcode);
             Assert.IsTrue(_emulator[Flag.C]);
-            Assert.AreEqual(0x00, _emulator[Register.H]);
-            Assert.AreEqual(0x00, _emulator[Register.L]);
+            // In case we are adding HL to HL we are calculating 0xFF01 + 0xFF01 = 0xFE02
+            Assert.AreEqual(upper == Register.H ? 0xFE : 0x00, _emulator[Register.H]);
+            Assert.AreEqual(lower == Register.L ? 0x02 : 0x00, _emulator[Register.L]);
         }
 
         private void LDAX(byte opcode, Register upper, Register lower)
@@ -224,7 +275,15 @@ namespace Tests
         [TestMethod]
         public void AddingTwo8BitNumbers()
         {
-            var program = new byte[] { 0x21, 0x05, 0x30, 0x7E, 0x23, 0x86, 0x23, 0x77, 0x76 };
+            var program = new byte[] {
+                0x21, 0x05, 0x30, // LXI H, 3005h
+                0x7E, // MOV A, M
+                0x23, // INX H
+                0x86, // ADD M
+                0x23, // INX H
+                0x77, // MOV M, A
+                0x76  // HLT
+            };
             var halted = false;
 
             _emulator.Halted += (sender, args) => { halted = true; };
