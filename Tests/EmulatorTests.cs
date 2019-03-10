@@ -178,8 +178,121 @@ namespace Tests
 
         // ------------------ 0x30 - 0x3F
 
+        [TestMethod]
+        public void SIM()
+        {
+            _emulator[Register.A] = 0x24;
+            SetProgramAndStep(new ProgramOptions(1), 0x30);
+            Assert.AreEqual(0x24, _emulator.InterruptMask);
+        }
+
+        [TestMethod]
+        public void LXI_SP()
+        {
+            SetProgramAndStep(new ProgramOptions(3), 0x31, 0x05, 0x20);
+            Assert.AreEqual(0x2005, _emulator.StackPointer);
+        }
+
+        [TestMethod]
+        public void STA()
+        {
+            _emulator[Register.A] = 0x9F;
+            SetProgramAndStep(new ProgramOptions(3), 0x32, 0x50, 0x20);
+            Assert.AreEqual(0x9F, _emulator[0x2050]);
+        }
+
+        [TestMethod]
+        public void INX_SP()
+        {
+            _emulator.StackPointer = 0x2050;
+            SetProgramAndStep(new ProgramOptions(1), 0x33);
+            Assert.AreEqual(0x2051, _emulator.StackPointer);
+        }
+        [TestMethod]
+        public void INR_M()
+        {
+            _emulator[Register.H] = 0x20;
+            _emulator[Register.L] = 0x50;
+            _emulator[0x2050] = 0xFF;
+            _emulator[Flag.S] = true;
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { }, new Flag[] { Flag.S, Flag.Z, Flag.P, Flag.AC }), 0x34);
+            Assert.AreEqual(0x00, _emulator[0x2050]);
+        }
+
+        [TestMethod]
+        public void DCR_M()
+        {
+            _emulator[Register.H] = 0x20;
+            _emulator[Register.L] = 0x50;
+            _emulator[0x2050] = 0x00;
+            _emulator[Flag.Z] = true;
+            _emulator[Flag.AC] = true;
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { }, new Flag[] { Flag.S, Flag.Z, Flag.P, Flag.AC }), 0x35);
+            Assert.AreEqual(0xFF, _emulator[0x2050]);
+        }
+
+        [TestMethod]
+        public void MVI_M()
+        {
+            _emulator[Register.H] = 0x20;
+            _emulator[Register.L] = 0x50;
+            SetProgramAndStep(new ProgramOptions(2), 0x36, 0x92);
+            Assert.AreEqual(0x92, _emulator[0x2050]);
+        }
+
+        [TestMethod]
+        public void STC()
+        {
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { }, new Flag[] { Flag.C }), 0x37);
+            Assert.IsTrue(_emulator[Flag.C]);
+        }
+        [TestMethod, ExpectedException(typeof(InvalidOperationException))] public void Invalid_0x38() { SetProgramAndStep(new ProgramOptions(), 0x38); }
+
+        [TestMethod] public void DAD_SP()
+        {
+            _emulator[Register.H] = 0x00;
+            _emulator[Register.L] = 0x01;
+            _emulator.StackPointer = 0xFFFF;
+
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.L }, new Flag[] { Flag.C }), 0x39);
+            Assert.IsTrue(_emulator[Flag.C]);
+            Assert.AreEqual(0x00, _emulator[Register.H]);
+            Assert.AreEqual(0x00, _emulator[Register.L]);
+        }
+
+        [TestMethod]
+        public void LDA()
+        {
+            _emulator[0x2050] = 0xF8;
+
+            SetProgramAndStep(new ProgramOptions(3, Register.A), 0x3A, 0x50, 0x20);
+
+            Assert.AreEqual(0xF8, _emulator[Register.A]);
+        }
+
+        [TestMethod]
+        public void DCX_SP()
+        {
+            _emulator.StackPointer = 0x0000;
+
+            SetProgramAndStep(new ProgramOptions(1), 0x3B);
+            Assert.AreEqual(0xFFFF, _emulator.StackPointer);
+        }
+
         [TestMethod] public void INR_A() { INR(0x3C, Register.A); }
         [TestMethod] public void DCR_A() { DCR(0x3D, Register.A); }
+        [TestMethod] public void MVI_A() { MVI(0x3E, Register.A); }
+        [TestMethod]
+        public void CMC()
+        {
+            _emulator[Flag.C] = true;
+
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { }, new Flag[] { Flag.C }), 0x3F);
+
+            Assert.IsFalse(_emulator[Flag.C]);
+        }
+
+        // ------------------ 0x40 - 0x4F
 
 
         void LXI(byte opcode, Register upper, Register lower)

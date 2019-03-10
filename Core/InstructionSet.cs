@@ -49,14 +49,11 @@ namespace Core
         [Instruction(0xC4, OperandType.LabelAs16BitAddress)]
         public static readonly object CNZ;
 
-        [Instruction(0x2F, OperandType.None)]
-        public static readonly Action<Emulator> CMA = emulator =>
-        {
-            emulator[Register.A] = (byte)(0xFF - emulator[Register.A]);
-        };
+        [Instruction(0x2F, OperandType.None, Description = "Complement accumulator")]
+        public static readonly Action<Emulator> CMA = emulator => emulator[Register.A] = (byte)(0xFF - emulator[Register.A]);
 
-        [Instruction(0x3F, OperandType.None)]
-        public static readonly object CMC;
+        [Instruction(0x3F, OperandType.None, Description = "Complement carry")]
+        public static readonly Action<Emulator> CMC = emulator => emulator[Flag.C] = !emulator[Flag.C];
 
         [Instruction(0xB8, OperandType.RegisterOrMemory)]
         public static readonly object CMP;
@@ -164,8 +161,12 @@ namespace Core
         [Instruction(0xC2, OperandType.LabelAs16BitAddress)]
         public static readonly object JNZ;
 
-        [Instruction(0x3A, OperandType.Data16Bit)]
-        public static readonly object LDA;
+        [Instruction(0x3A, OperandType.Data16Bit, Description = "Load accumulator direct")]
+        public static readonly Action<Emulator, byte, byte> LDA = (emulator, lower, upper) =>
+        {
+            var address = (upper << 8) + lower;
+            emulator[Register.A] = emulator[(ushort)address];
+        };
 
         [Instruction(0x0A, OperandType.RegisterBD, Description = "Load accumulator indirect")]
         public static readonly Action<Emulator, Register> LDAX = (emulator, register) =>
@@ -204,7 +205,10 @@ namespace Core
         };
 
         [Instruction(0x31, OperandType.Data16Bit)]
-        public static readonly object LXI_SP;
+        public static readonly Action<Emulator, byte, byte> LXI_SP= (emulator, lower, upper) =>
+        {
+            emulator.StackPointer = (ushort)((upper << 8) + lower);
+        };
 
         [Instruction(0x78, OperandType.RegisterOrMemory)]
         public static readonly object MOV_A;
@@ -340,14 +344,18 @@ namespace Core
         [Instruction(0xF9, OperandType.None)]
         public static readonly object SPHL;
 
-        [Instruction(0x32, OperandType.Data16Bit)]
-        public static readonly object STA;
+        [Instruction(0x32, OperandType.Data16Bit, Description = "Store accumulator direct")]
+        public static readonly Action<Emulator, byte, byte> STA = (emulator, lower, upper) =>
+        {
+            var address = (upper << 8) + lower;
+            emulator[(ushort)(address)] = emulator[Register.A];
+        };
 
         [Instruction(0x02, OperandType.RegisterBD)]
         public static readonly object STAX;
 
         [Instruction(0x37, OperandType.None)]
-        public static readonly object STC;
+        public static readonly Action<Emulator> STC = emulator => emulator[Flag.C] = true;
 
         [Instruction(0x90, OperandType.RegisterOrMemory)]
         public static readonly object SUB;
