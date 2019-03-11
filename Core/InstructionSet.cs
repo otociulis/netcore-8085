@@ -10,8 +10,11 @@ namespace Core
         [Instruction(0x88, OperandType.RegisterOrMemory, Description = "Add register to accumulator with carry")] // Distance = 1
         public static readonly object ADC;
 
-        [Instruction(0x80, OperandType.RegisterOrMemory)]
-        public static readonly object ADD;
+        [Instruction(0x80, OperandType.RegisterOrMemory, Description = "Add register to accumulator ")]
+        public static readonly Action<Emulator, Register?> ADD = (emulator, register) =>
+        {
+            IncrementSourceBy(emulator, Register.A, register.HasValue ? emulator[register.Value] : emulator.GetHLMemoryValue());
+        };
 
         [Instruction(0xC6, OperandType.Data8Bit)]
         public static readonly object ADI;
@@ -205,16 +208,16 @@ namespace Core
         };
 
         [Instruction(0x31, OperandType.Data16Bit)]
-        public static readonly Action<Emulator, byte, byte> LXI_SP= (emulator, lower, upper) =>
-        {
-            emulator.StackPointer = (ushort)((upper << 8) + lower);
-        };
+        public static readonly Action<Emulator, byte, byte> LXI_SP = (emulator, lower, upper) =>
+         {
+             emulator.StackPointer = (ushort)((upper << 8) + lower);
+         };
 
         [Instruction(0x78, OperandType.RegisterOrMemory, Description = "Copy from source to register A")]
         public static readonly Action<Emulator, Register?> MOV_A = (emulator, register) => CopyFromSourceToDestination(emulator, register, Register.A);
 
         [Instruction(0x40, OperandType.RegisterOrMemory, Description = "Copy from source to register B")]
-        public static readonly Action<Emulator, Register?> MOV_B = (emulator, register) => CopyFromSourceToDestination(emulator, register, Register.B);        
+        public static readonly Action<Emulator, Register?> MOV_B = (emulator, register) => CopyFromSourceToDestination(emulator, register, Register.B);
 
         [Instruction(0x48, OperandType.RegisterOrMemory, Description = "Copy from source to register C")]
         public static readonly Action<Emulator, Register?> MOV_C = (emulator, register) => CopyFromSourceToDestination(emulator, register, Register.C);
@@ -381,7 +384,7 @@ namespace Core
 
         private static void CopyFromSourceToDestination(Emulator emulator, Register? source, Register destination)
         {
-            emulator[destination] = source.HasValue ? emulator[source.Value] : emulator[emulator.Get16BitValue(Register.H, Register.L)];
+            emulator[destination] = source.HasValue ? emulator[source.Value] : emulator.GetHLMemoryValue();
         }
 
         private static void IncrementSourceBy(Emulator emulator, Register? register, int increment)

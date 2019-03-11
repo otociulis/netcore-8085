@@ -379,6 +379,23 @@ namespace Tests
 
         // ------------------ 0x80 - 0x8F
 
+        [TestMethod] public void ADD_B() => ADD(0x80, Register.B);            
+        [TestMethod] public void ADD_C() => ADD(0x81, Register.C);
+        [TestMethod] public void ADD_D() => ADD(0x82, Register.D);
+        [TestMethod] public void ADD_E() => ADD(0x83, Register.E);
+        [TestMethod] public void ADD_H() => ADD(0x84, Register.H);
+        [TestMethod] public void ADD_L() => ADD(0x85, Register.L);
+        [TestMethod] public void ADD_M() => ADD(0x86, null);
+        [TestMethod] public void ADD_A() => ADD(0x87, Register.A);
+        /*[TestMethod] public void ADC_B() => CompileAndCompare(@"ADC B", 0x88);
+        [TestMethod] public void ADC_C() => CompileAndCompare(@"ADC C", 0x89);
+        [TestMethod] public void ADC_D() => CompileAndCompare(@"ADC D", 0x8A);
+        [TestMethod] public void ADC_E() => CompileAndCompare(@"ADC E", 0x8B);
+        [TestMethod] public void ADC_H() => CompileAndCompare(@"ADC H", 0x8C);
+        [TestMethod] public void ADC_L() => CompileAndCompare(@"ADC L", 0x8D);
+        [TestMethod] public void ADC_M() => CompileAndCompare(@"ADC M", 0x8E);
+        [TestMethod] public void ADC_A() => CompileAndCompare(@"ADC A", 0x8F);*/
+
         private void MOV(byte opcode, Register destination, Register? source)
         {
             if (source.HasValue)
@@ -396,6 +413,24 @@ namespace Tests
 
             SetProgramAndStep(options, opcode);
             Assert.AreEqual(0x34, _emulator[destination]);
+        }
+
+        private void ADD(byte opcode, Register? register)
+        {
+            if (register.HasValue)
+            {
+                _emulator[register.Value] = 0x51;
+            }
+            else
+            {
+                _emulator[Register.H] = 0x20;
+                _emulator[Register.L] = 0x50;
+                _emulator[0x2050] = 0x51;
+            }
+            _emulator[Register.A] = 0x47;
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.A }, register == Register.A ? new Flag[] { Flag.S, Flag.P } : new Flag[] { Flag.S }), opcode);
+            Assert.AreEqual(register == Register.A ? 0x8E : 0x98, _emulator[Register.A]);
+            Assert.IsTrue(_emulator[Flag.S]);
         }
 
         private void MOV(byte opcode, Register source)

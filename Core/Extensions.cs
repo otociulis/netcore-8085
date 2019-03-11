@@ -29,5 +29,10 @@
 
             return increment ? (valueLower + previousLower > 0xF) : (valueLower - previousLower > valueLower);
         }
+
+        public static byte GetHLMemoryValue(this Emulator emulator)
+        {
+            return emulator[emulator.Get16BitValue(Register.H, Register.L)];
+        }
     }
 }
