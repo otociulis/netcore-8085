@@ -226,6 +226,11 @@ namespace Core
             action(lower, lower + 1);
         }
 
+        internal void OnHalted()
+        {
+            Halted?.Invoke(this, EventArgs.Empty);
+        }
+
         public void Step()
         {
             var opcode = _memory[ProgramCounter++];

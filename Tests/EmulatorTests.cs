@@ -379,7 +379,7 @@ namespace Tests
 
         // ------------------ 0x80 - 0x8F
 
-        [TestMethod] public void ADD_B() => ADD(0x80, Register.B);            
+        [TestMethod] public void ADD_B() => ADD(0x80, Register.B);
         [TestMethod] public void ADD_C() => ADD(0x81, Register.C);
         [TestMethod] public void ADD_D() => ADD(0x82, Register.D);
         [TestMethod] public void ADD_E() => ADD(0x83, Register.E);
@@ -387,14 +387,14 @@ namespace Tests
         [TestMethod] public void ADD_L() => ADD(0x85, Register.L);
         [TestMethod] public void ADD_M() => ADD(0x86, null);
         [TestMethod] public void ADD_A() => ADD(0x87, Register.A);
-        /*[TestMethod] public void ADC_B() => CompileAndCompare(@"ADC B", 0x88);
-        [TestMethod] public void ADC_C() => CompileAndCompare(@"ADC C", 0x89);
-        [TestMethod] public void ADC_D() => CompileAndCompare(@"ADC D", 0x8A);
-        [TestMethod] public void ADC_E() => CompileAndCompare(@"ADC E", 0x8B);
-        [TestMethod] public void ADC_H() => CompileAndCompare(@"ADC H", 0x8C);
-        [TestMethod] public void ADC_L() => CompileAndCompare(@"ADC L", 0x8D);
-        [TestMethod] public void ADC_M() => CompileAndCompare(@"ADC M", 0x8E);
-        [TestMethod] public void ADC_A() => CompileAndCompare(@"ADC A", 0x8F);*/
+        [TestMethod] public void ADC_B() => ADC(0x88, Register.B);
+        [TestMethod] public void ADC_C() => ADC(0x89, Register.C);
+        [TestMethod] public void ADC_D() => ADC(0x8A, Register.D);
+        [TestMethod] public void ADC_E() => ADC(0x8B, Register.E);
+        [TestMethod] public void ADC_H() => ADC(0x8C, Register.H);
+        [TestMethod] public void ADC_L() => ADC(0x8D, Register.L);
+        [TestMethod] public void ADC_M() => ADC(0x8E, null);
+        [TestMethod] public void ADC_A() => ADC(0x8F, Register.A);
 
         private void MOV(byte opcode, Register destination, Register? source)
         {
@@ -431,6 +431,25 @@ namespace Tests
             SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.A }, register == Register.A ? new Flag[] { Flag.S, Flag.P } : new Flag[] { Flag.S }), opcode);
             Assert.AreEqual(register == Register.A ? 0x8E : 0x98, _emulator[Register.A]);
             Assert.IsTrue(_emulator[Flag.S]);
+        }
+
+        private void ADC(byte opcode, Register? register)
+        {
+            if (register.HasValue)
+            {
+                _emulator[register.Value] = 0xA1;
+            }
+            else
+            {
+                _emulator[Register.H] = 0x20;
+                _emulator[Register.L] = 0x50;
+                _emulator[0x2050] = 0xA1;
+            }
+            _emulator[Register.A] = 0x98;
+            _emulator[Flag.C] = true;
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.A }, register == Register.A ? new Flag[] { Flag.C } : new Flag[] { Flag.C, Flag.P }), opcode);
+            Assert.AreEqual(register == Register.A ? 0x31 : 0x3A, _emulator[Register.A]);
+            Assert.IsFalse(_emulator[Flag.C]);
         }
 
         private void MOV(byte opcode, Register source)
@@ -537,12 +556,12 @@ namespace Tests
         public void AddingTwo8BitNumbers()
         {
             var program = new byte[] {
-                0x21, 0x05, 0x30, 
-                0x7E, 
-                0x23, 
-                0x86, 
-                0x23, 
-                0x77, 
+                0x21, 0x05, 0x30,
+                0x7E,
+                0x23,
+                0x86,
+                0x23,
+                0x77,
                 0x76  // HLT
             };
             var halted = false;
@@ -575,7 +594,7 @@ namespace Tests
 
             Assert.AreEqual(0x406, _emulator.ProgramCounter);
             Assert.AreEqual(0x9D, _emulator[Register.A]);
-            Assert.IsTrue(_emulator[Flag.P]);
+            Assert.IsFalse(_emulator[Flag.P]);
 
             _emulator.Step(); // INX H
 

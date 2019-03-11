@@ -8,7 +8,13 @@ namespace Core
         public static readonly object ACI;
 
         [Instruction(0x88, OperandType.RegisterOrMemory, Description = "Add register to accumulator with carry")] // Distance = 1
-        public static readonly object ADC;
+        public static readonly Action<Emulator, Register?> ADC = (emulator, register) =>
+        {
+            var increment = register.HasValue ? emulator[register.Value] : emulator.GetHLMemoryValue();
+            increment += (byte)(emulator[Flag.C] ? 1 : 0);
+            IncrementSourceBy(emulator, Register.A, increment);
+            emulator[Flag.C] = false;
+        };
 
         [Instruction(0x80, OperandType.RegisterOrMemory, Description = "Add register to accumulator ")]
         public static readonly Action<Emulator, Register?> ADD = (emulator, register) =>
@@ -113,7 +119,7 @@ namespace Core
         public static readonly object EI;
 
         [Instruction(0x76, OperandType.None)]
-        public static readonly object HLT;
+        public static readonly Action<Emulator> HLT = emulator => { emulator.OnHalted(); };
 
         [Instruction(0xDB, OperandType.Data8Bit)]
         public static readonly object IN;
