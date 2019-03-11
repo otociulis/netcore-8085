@@ -248,7 +248,8 @@ namespace Tests
         }
         [TestMethod, ExpectedException(typeof(InvalidOperationException))] public void Invalid_0x38() { SetProgramAndStep(new ProgramOptions(), 0x38); }
 
-        [TestMethod] public void DAD_SP()
+        [TestMethod]
+        public void DAD_SP()
         {
             _emulator[Register.H] = 0x00;
             _emulator[Register.L] = 0x01;
@@ -294,6 +295,118 @@ namespace Tests
 
         // ------------------ 0x40 - 0x4F
 
+        [TestMethod] public void MOV_B_B() => MOV(0x40, Register.B, Register.B);
+        [TestMethod] public void MOV_B_C() => MOV(0x41, Register.B, Register.C);
+        [TestMethod] public void MOV_B_D() => MOV(0x42, Register.B, Register.D);
+        [TestMethod] public void MOV_B_E() => MOV(0x43, Register.B, Register.E);
+        [TestMethod] public void MOV_B_H() => MOV(0x44, Register.B, Register.H);
+        [TestMethod] public void MOV_B_L() => MOV(0x45, Register.B, Register.L);
+        [TestMethod] public void MOV_B_M() => MOV(0x46, Register.B, null);
+        [TestMethod] public void MOV_B_A() => MOV(0x47, Register.B, Register.A);
+        [TestMethod] public void MOV_C_B() => MOV(0x48, Register.C, Register.B);
+        [TestMethod] public void MOV_C_C() => MOV(0x49, Register.C, Register.C);
+        [TestMethod] public void MOV_C_D() => MOV(0x4A, Register.C, Register.D);
+        [TestMethod] public void MOV_C_E() => MOV(0x4B, Register.C, Register.E);
+        [TestMethod] public void MOV_C_H() => MOV(0x4C, Register.C, Register.H);
+        [TestMethod] public void MOV_C_L() => MOV(0x4D, Register.C, Register.L);
+        [TestMethod] public void MOV_C_M() => MOV(0x4E, Register.C, null);
+        [TestMethod] public void MOV_C_A() => MOV(0x4F, Register.C, Register.A);
+
+        // ------------------ 0x50 - 0x5F
+
+        [TestMethod] public void MOV_D_B() => MOV(0x50, Register.D, Register.B);
+        [TestMethod] public void MOV_D_C() => MOV(0x51, Register.D, Register.C);
+        [TestMethod] public void MOV_D_D() => MOV(0x52, Register.D, Register.D);
+        [TestMethod] public void MOV_D_E() => MOV(0x53, Register.D, Register.E);
+        [TestMethod] public void MOV_D_H() => MOV(0x54, Register.D, Register.H);
+        [TestMethod] public void MOV_D_L() => MOV(0x55, Register.D, Register.L);
+        [TestMethod] public void MOV_D_M() => MOV(0x56, Register.D, null);
+        [TestMethod] public void MOV_D_A() => MOV(0x57, Register.D, Register.A);
+        [TestMethod] public void MOV_E_B() => MOV(0x58, Register.E, Register.B);
+        [TestMethod] public void MOV_E_C() => MOV(0x59, Register.E, Register.C);
+        [TestMethod] public void MOV_E_D() => MOV(0x5A, Register.E, Register.D);
+        [TestMethod] public void MOV_E_E() => MOV(0x5B, Register.E, Register.E);
+        [TestMethod] public void MOV_E_H() => MOV(0x5C, Register.E, Register.H);
+        [TestMethod] public void MOV_E_L() => MOV(0x5D, Register.E, Register.L);
+        [TestMethod] public void MOV_E_M() => MOV(0x5E, Register.E, null);
+        [TestMethod] public void MOV_E_A() => MOV(0x5F, Register.E, Register.A);
+
+        // ------------------ 0x60 - 0x6F
+
+        [TestMethod] public void MOV_H_B() => MOV(0x60, Register.H, Register.B);
+        [TestMethod] public void MOV_H_C() => MOV(0x61, Register.H, Register.C);
+        [TestMethod] public void MOV_H_D() => MOV(0x62, Register.H, Register.D);
+        [TestMethod] public void MOV_H_E() => MOV(0x63, Register.H, Register.E);
+        [TestMethod] public void MOV_H_H() => MOV(0x64, Register.H, Register.H);
+        [TestMethod] public void MOV_H_L() => MOV(0x65, Register.H, Register.L);
+        [TestMethod] public void MOV_H_M() => MOV(0x66, Register.H, null);
+        [TestMethod] public void MOV_H_A() => MOV(0x67, Register.H, Register.A);
+        [TestMethod] public void MOV_L_B() => MOV(0x68, Register.L, Register.B);
+        [TestMethod] public void MOV_L_C() => MOV(0x69, Register.L, Register.C);
+        [TestMethod] public void MOV_L_D() => MOV(0x6A, Register.L, Register.D);
+        [TestMethod] public void MOV_L_E() => MOV(0x6B, Register.L, Register.E);
+        [TestMethod] public void MOV_L_H() => MOV(0x6C, Register.L, Register.H);
+        [TestMethod] public void MOV_L_L() => MOV(0x6D, Register.L, Register.L);
+        [TestMethod] public void MOV_L_M() => MOV(0x6E, Register.L, null);
+        [TestMethod] public void MOV_L_A() => MOV(0x6F, Register.L, Register.A);
+
+        // ------------------ 0x70 - 0x7F
+
+        [TestMethod] public void MOV_M_B() => MOV(0x70, Register.B);
+        [TestMethod] public void MOV_M_C() => MOV(0x71, Register.C);
+        [TestMethod] public void MOV_M_D() => MOV(0x72, Register.D);
+        [TestMethod] public void MOV_M_E() => MOV(0x73, Register.E);
+        [TestMethod] public void MOV_M_H() => MOV(0x74, Register.H);
+        [TestMethod] public void MOV_M_L() => MOV(0x75, Register.L);
+        [TestMethod]
+        public void HLT()
+        {
+            _emulator.SetMemory(0x400, 0x76);
+            _emulator.ProgramCounter = 0x400;
+            _emulator.Run();
+
+            Assert.AreEqual(0x400, _emulator.ProgramCounter);
+        }
+        [TestMethod] public void MOV_M_A() => MOV(0x77, Register.A);
+        [TestMethod] public void MOV_A_B() => MOV(0x78, Register.A, Register.B);
+        [TestMethod] public void MOV_A_C() => MOV(0x79, Register.A, Register.C);
+        [TestMethod] public void MOV_A_D() => MOV(0x7A, Register.A, Register.D);
+        [TestMethod] public void MOV_A_E() => MOV(0x7B, Register.A, Register.E);
+        [TestMethod] public void MOV_A_H() => MOV(0x7C, Register.A, Register.H);
+        [TestMethod] public void MOV_A_L() => MOV(0x7D, Register.A, Register.L);
+        [TestMethod] public void MOV_A_M() => MOV(0x7E, Register.A, null);
+        [TestMethod] public void MOV_A_A() => MOV(0x7F, Register.A, Register.A);
+
+        // ------------------ 0x80 - 0x8F
+
+        private void MOV(byte opcode, Register destination, Register? source)
+        {
+            if (source.HasValue)
+            {
+                _emulator[source.Value] = 0x34;
+            }
+            else
+            {
+                _emulator[Register.H] = 0x20;
+                _emulator[Register.L] = 0x50;
+                _emulator[0x2050] = 0x34;
+            }
+
+            var options = new ProgramOptions(1, source == destination ? new Register[] { } : new Register[] { destination });
+
+            SetProgramAndStep(options, opcode);
+            Assert.AreEqual(0x34, _emulator[destination]);
+        }
+
+        private void MOV(byte opcode, Register source)
+        {
+            _emulator[source] = 0x34;
+            _emulator[Register.H] = 0x20;
+            _emulator[Register.L] = 0x50;
+
+            SetProgramAndStep(new ProgramOptions(1), opcode);
+            Assert.AreEqual(source == Register.H ? 0x20 : (source == Register.L ? 0x50 : 0x34), _emulator[0x2050]);
+        }
 
         void LXI(byte opcode, Register upper, Register lower)
         {
@@ -389,12 +502,12 @@ namespace Tests
         public void AddingTwo8BitNumbers()
         {
             var program = new byte[] {
-                0x21, 0x05, 0x30, // LXI H, 3005h
-                0x7E, // MOV A, M
-                0x23, // INX H
-                0x86, // ADD M
-                0x23, // INX H
-                0x77, // MOV M, A
+                0x21, 0x05, 0x30, 
+                0x7E, 
+                0x23, 
+                0x86, 
+                0x23, 
+                0x77, 
                 0x76  // HLT
             };
             var halted = false;
@@ -405,37 +518,37 @@ namespace Tests
 
             _emulator.ProgramCounter = 0x400;
 
-            _emulator.Step();
+            _emulator.Step(); // LXI H, 3005h
 
             Assert.AreEqual(0x403, _emulator.ProgramCounter);
             Assert.AreEqual(0x30, _emulator[Register.H]);
             Assert.AreEqual(0x05, _emulator[Register.L]);
 
-            _emulator.Step();
+            _emulator.Step(); // MOV A, M
 
             Assert.AreEqual(0x404, _emulator.ProgramCounter);
             Assert.AreEqual(0x14, _emulator[Register.A]);
             Assert.IsFalse(_emulator[Flag.P]);
 
-            _emulator.Step();
+            _emulator.Step(); // INX H
 
             Assert.AreEqual(0x405, _emulator.ProgramCounter);
             Assert.AreEqual(0x30, _emulator[Register.H]);
             Assert.AreEqual(0x06, _emulator[Register.L]);
 
-            _emulator.Step();
+            _emulator.Step(); // ADD M
 
             Assert.AreEqual(0x406, _emulator.ProgramCounter);
             Assert.AreEqual(0x9D, _emulator[Register.A]);
             Assert.IsTrue(_emulator[Flag.P]);
 
-            _emulator.Step();
+            _emulator.Step(); // INX H
 
             Assert.AreEqual(0x407, _emulator.ProgramCounter);
             Assert.AreEqual(0x30, _emulator[Register.H]);
             Assert.AreEqual(0x07, _emulator[Register.L]);
 
-            _emulator.Step();
+            _emulator.Step(); // MOV M, A
 
             Assert.AreEqual(0x408, _emulator.ProgramCounter);
             Assert.AreEqual(0x9D, _emulator[0x3007]);

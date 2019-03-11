@@ -149,6 +149,13 @@ namespace Core
                         case OperandType.Data16Bit:
                             InstructionSet.Add(attribute.Code, metadata);
                             break;
+                        case OperandType.Register:
+                            foreach (Register key in Enum.GetValues(typeof(Register)))
+                            {
+                                var offset = (byte)(attribute.Code + (int)key * attribute.InstructionSpacing);
+                                InstructionSet.Add(offset, new InstructionMetadata(metadata, key));
+                            }
+                            break;
                         case OperandType.RegisterBD:
                             InstructionSet.Add(attribute.Code, new InstructionMetadata(metadata, Register.B));
                             InstructionSet.Add((byte)(attribute.Code + 0x10), new InstructionMetadata(metadata, Register.D));
