@@ -434,6 +434,25 @@ namespace Tests
         [TestMethod] public void XRA_M() => XRA(0xAE, null);
         [TestMethod] public void XRA_A() => XRA(0xAF, Register.A);
 
+        // ------------------ 0xB0 - 0xBF
+
+        [TestMethod] public void ORA_B() => ORA(0xB0, Register.B);
+        [TestMethod] public void ORA_C() => ORA(0xB1, Register.C);
+        [TestMethod] public void ORA_D() => ORA(0xB2, Register.D);
+        [TestMethod] public void ORA_E() => ORA(0xB3, Register.E);
+        [TestMethod] public void ORA_H() => ORA(0xB4, Register.H);
+        [TestMethod] public void ORA_L() => ORA(0xB5, Register.L);
+        [TestMethod] public void ORA_M() => ORA(0xB6, null);
+        [TestMethod] public void ORA_A() => ORA(0xB7, Register.A);
+        [TestMethod] public void CMP_B() => CMP(0xB8, Register.B);
+        [TestMethod] public void CMP_C() => CMP(0xB9, Register.C);
+        [TestMethod] public void CMP_D() => CMP(0xBA, Register.D);
+        [TestMethod] public void CMP_E() => CMP(0xBB, Register.E);
+        [TestMethod] public void CMP_H() => CMP(0xBC, Register.H);
+        [TestMethod] public void CMP_L() => CMP(0xBD, Register.L);
+        [TestMethod] public void CMP_M() => CMP(0xBE, null);
+        [TestMethod] public void CMP_A() => CMP(0xBF, Register.A);
+
         private void MOV(byte opcode, Register destination, Register? source)
         {
             if (source.HasValue)
@@ -470,6 +489,43 @@ namespace Tests
                 register == Register.A ? new Register[] { } : new Register[] { Register.A }, 
                 register == Register.A ? new Flag[] { Flag.AC } : new Flag[] { Flag.Z, Flag.AC, Flag.P }), opcode);
             Assert.AreEqual(register == Register.A ? 0x54 : 0x00, _emulator[Register.A]);
+        }
+
+        private void ORA(byte opcode, Register? register)
+        {
+            if (register.HasValue)
+            {
+                _emulator[register.Value] = 0x81;
+            }
+            else
+            {
+                _emulator[Register.H] = 0x20;
+                _emulator[Register.L] = 0x50;
+                _emulator[0x2050] = 0x81;
+            }
+            _emulator[Register.A] = 0x03;
+            SetProgramAndStep(new ProgramOptions(1,
+                register == Register.A ? new Register[] { } : new Register[] { Register.A },
+                register == Register.A ? new Flag[] { Flag.P } : new Flag[] { Flag.S }), opcode);
+            Assert.AreEqual(register == Register.A ? 0x03 : 0x83, _emulator[Register.A]);
+        }
+
+        private void CMP(byte opcode, Register? register)
+        {
+            if (register.HasValue)
+            {
+                _emulator[register.Value] = 0x62;
+            }
+            else
+            {
+                _emulator[Register.H] = 0x20;
+                _emulator[Register.L] = 0x50;
+                _emulator[0x2050] = 0x62;
+            }
+            _emulator[Register.A] = 0x57;
+            SetProgramAndStep(new ProgramOptions(1,
+                new Register[] { },
+                register == Register.A ? new Flag[] { Flag.Z, Flag.P } : new Flag[] { Flag.S, Flag.P, Flag.C }), opcode);
         }
 
         private void XRA(byte opcode, Register? register)

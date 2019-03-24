@@ -76,8 +76,20 @@ namespace Core
         [Instruction(0x3F, OperandType.None, Description = "Complement carry")]
         public static readonly Action<Emulator> CMC = emulator => emulator[Flag.C] = !emulator[Flag.C];
 
-        [Instruction(0xB8, OperandType.RegisterOrMemory)]
-        public static readonly object CMP;
+        [Instruction(0xB8, OperandType.RegisterOrMemory, Description = "Compare with accumulator")]
+        public static readonly Action<Emulator, Register?> CMP = (emulator, register) =>
+        {
+            var value = register.HasValue ? emulator[register.Value] : emulator.GetHLMemoryValue();
+            var accumulator = emulator[Register.A];
+            // Comparison is performed by subtracting contents of the operand from acculumator but registers/memory is not modified
+            var current = (byte)(emulator[Register.A] - value);
+
+            emulator[Flag.AC] = accumulator.AuxiliaryCarryFlag(value, false);
+            emulator[Flag.C] = accumulator < value ? true : (accumulator == value ? emulator[Flag.C] : false);
+            emulator[Flag.Z] = current == 0;
+            emulator[Flag.P] = current.ParityFlag();
+            emulator[Flag.S] = current.SignFlag();
+        };
 
         [Instruction(0xFE, OperandType.Data8Bit)]
         public static readonly object CPI;
@@ -286,8 +298,20 @@ namespace Core
         [Instruction(0x00, OperandType.None)]
         public static readonly Action NOP = () => { };
 
-        [Instruction(0xB0, OperandType.RegisterOrMemory)]
-        public static readonly object ORA;
+        [Instruction(0xB0, OperandType.RegisterOrMemory, Description = "Logical OR with accumulator")]
+        public static readonly Action<Emulator, Register?> ORA = (emulator, register) =>
+        {
+            var current = register.HasValue ? emulator[register.Value] : emulator.GetHLMemoryValue();
+            current |= emulator[Register.A];
+
+            emulator[Flag.AC] = false;
+            emulator[Flag.C] = false;
+            emulator[Flag.P] = current.ParityFlag();
+            emulator[Flag.Z] = current == 0;
+            emulator[Flag.S] = current.SignFlag();
+
+            emulator[Register.A] = current;
+        };
 
         [Instruction(0xF6, OperandType.Data8Bit)]
         public static readonly object ORI;
