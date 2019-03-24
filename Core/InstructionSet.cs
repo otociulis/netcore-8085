@@ -25,8 +25,20 @@ namespace Core
         [Instruction(0xC6, OperandType.Data8Bit)]
         public static readonly object ADI;
 
-        [Instruction(0xA0, OperandType.RegisterOrMemory)]
-        public static readonly object ANA;
+        [Instruction(0xA0, OperandType.RegisterOrMemory, Description = "Logical AND with accumulator")]
+        public static readonly Action<Emulator, Register?> ANA = (emulator, register) =>
+        {
+            var current = register.HasValue ? emulator[register.Value] : emulator.GetHLMemoryValue();
+            current &= emulator[Register.A];
+
+            emulator[Flag.AC] = true;
+            emulator[Flag.C] = false;
+            emulator[Flag.P] = current.ParityFlag();
+            emulator[Flag.Z] = current == 0;
+            emulator[Flag.S] = current.SignFlag();
+
+            emulator[Register.A] = current;
+        };
 
         [Instruction(0xE6, OperandType.Data8Bit)]
         public static readonly object ANI;
@@ -388,8 +400,20 @@ namespace Core
         [Instruction(0xEB, OperandType.None)]
         public static readonly object XCHG;
 
-        [Instruction(0xA8, OperandType.RegisterOrMemory)]
-        public static readonly object XRA;
+        [Instruction(0xA8, OperandType.RegisterOrMemory, Description = "Exclusive OR with accumulator")]
+        public static readonly Action<Emulator, Register?> XRA = (emulator, register) =>
+        {
+            var current = register.HasValue ? emulator[register.Value] : emulator.GetHLMemoryValue();
+            current ^= emulator[Register.A];
+
+            emulator[Flag.AC] = false;
+            emulator[Flag.C] = false;
+            emulator[Flag.P] = current.ParityFlag();
+            emulator[Flag.Z] = current == 0;
+            emulator[Flag.S] = current.SignFlag();
+
+            emulator[Register.A] = current;
+        };
 
         [Instruction(0xEE, OperandType.Data8Bit)]
         public static readonly object XRI;

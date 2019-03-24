@@ -415,6 +415,25 @@ namespace Tests
         [TestMethod] public void SBB_M() => SBB(0x9E, null);
         [TestMethod] public void SBB_A() => SBB(0x9F, Register.A);
 
+        // ------------------ 0xA0 - 0xAF
+
+        [TestMethod] public void ANA_B() => ANA(0xA0, Register.B);
+        [TestMethod] public void ANA_C() => ANA(0xA1, Register.C);
+        [TestMethod] public void ANA_D() => ANA(0xA2, Register.D);
+        [TestMethod] public void ANA_E() => ANA(0xA3, Register.E);
+        [TestMethod] public void ANA_H() => ANA(0xA4, Register.H);
+        [TestMethod] public void ANA_L() => ANA(0xA5, Register.L);
+        [TestMethod] public void ANA_M() => ANA(0xA6, null);
+        [TestMethod] public void ANA_A() => ANA(0xA7, Register.A);
+        [TestMethod] public void XRA_B() => XRA(0xA8, Register.B);
+        [TestMethod] public void XRA_C() => XRA(0xA9, Register.C);
+        [TestMethod] public void XRA_D() => XRA(0xAA, Register.D);
+        [TestMethod] public void XRA_E() => XRA(0xAB, Register.E);
+        [TestMethod] public void XRA_H() => XRA(0xAC, Register.H);
+        [TestMethod] public void XRA_L() => XRA(0xAD, Register.L);
+        [TestMethod] public void XRA_M() => XRA(0xAE, null);
+        [TestMethod] public void XRA_A() => XRA(0xAF, Register.A);
+
         private void MOV(byte opcode, Register destination, Register? source)
         {
             if (source.HasValue)
@@ -432,6 +451,44 @@ namespace Tests
 
             SetProgramAndStep(options, opcode);
             Assert.AreEqual(0x34, _emulator[destination]);
+        }
+
+        private void ANA(byte opcode, Register? register)
+        {
+            if (register.HasValue)
+            {
+                _emulator[register.Value] = 0x82;
+            }
+            else
+            {
+                _emulator[Register.H] = 0x20;
+                _emulator[Register.L] = 0x50;
+                _emulator[0x2050] = 0x82;
+            }
+            _emulator[Register.A] = 0x54;
+            SetProgramAndStep(new ProgramOptions(1, 
+                register == Register.A ? new Register[] { } : new Register[] { Register.A }, 
+                register == Register.A ? new Flag[] { Flag.AC } : new Flag[] { Flag.Z, Flag.AC, Flag.P }), opcode);
+            Assert.AreEqual(register == Register.A ? 0x54 : 0x00, _emulator[Register.A]);
+        }
+
+        private void XRA(byte opcode, Register? register)
+        {
+            if (register.HasValue)
+            {
+                _emulator[register.Value] = 0x56;
+            }
+            else
+            {
+                _emulator[Register.H] = 0x20;
+                _emulator[Register.L] = 0x50;
+                _emulator[0x2050] = 0x56;
+            }
+            _emulator[Register.A] = 0x77;
+            SetProgramAndStep(new ProgramOptions(1,
+                new Register[] { Register.A },
+                register == Register.A ? new Flag[] { Flag.Z, Flag.P } : new Flag[] { Flag.P }), opcode);
+            Assert.AreEqual(register == Register.A ? 0x00 : 0x21, _emulator[Register.A]);
         }
 
         private void ADD(byte opcode, Register? register)
