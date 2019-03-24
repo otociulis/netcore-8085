@@ -337,8 +337,14 @@ namespace Core
         [Instruction(0xC7, OperandType.Index)]
         public static readonly object RST;
 
-        [Instruction(0x98, OperandType.RegisterOrMemory)]
-        public static readonly object SBB;
+        [Instruction(0x98, OperandType.RegisterOrMemory, Description = "Subtract source and Borrow from accumulator")]
+        public static readonly Action<Emulator, Register?> SBB = (emulator, register) =>
+        {
+            var decrement = register.HasValue ? emulator[register.Value] : emulator.GetHLMemoryValue();
+            decrement += (byte)(emulator[Flag.C] ? 1 : 0);
+            IncrementSourceBy(emulator, Register.A, -decrement);
+            emulator[Flag.C] = false;
+        };
 
         [Instruction(0xDE, OperandType.Data8Bit)]
         public static readonly object SBI;
@@ -370,8 +376,11 @@ namespace Core
         [Instruction(0x37, OperandType.None)]
         public static readonly Action<Emulator> STC = emulator => emulator[Flag.C] = true;
 
-        [Instruction(0x90, OperandType.RegisterOrMemory)]
-        public static readonly object SUB;
+        [Instruction(0x90, OperandType.RegisterOrMemory, Description = "Subtract register or memory from accumulator")]
+        public static readonly Action<Emulator, Register?> SUB = (emulator, register) =>
+        {
+            IncrementSourceBy(emulator, Register.A, -(register.HasValue ? emulator[register.Value] : emulator.GetHLMemoryValue()));
+        };
 
         [Instruction(0xD6, OperandType.Data8Bit)]
         public static readonly object SUI;

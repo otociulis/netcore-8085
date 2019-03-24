@@ -396,6 +396,25 @@ namespace Tests
         [TestMethod] public void ADC_M() => ADC(0x8E, null);
         [TestMethod] public void ADC_A() => ADC(0x8F, Register.A);
 
+        // ------------------ 0x90 - 0x9F
+
+        [TestMethod] public void SUB_B() => SUB(0x90, Register.B);
+        [TestMethod] public void SUB_C() => SUB(0x91, Register.C);
+        [TestMethod] public void SUB_D() => SUB(0x92, Register.D);
+        [TestMethod] public void SUB_E() => SUB(0x93, Register.E);
+        [TestMethod] public void SUB_H() => SUB(0x94, Register.H);
+        [TestMethod] public void SUB_L() => SUB(0x95, Register.L);
+        [TestMethod] public void SUB_M() => SUB(0x96, null);
+        [TestMethod] public void SUB_A() => SUB(0x97, Register.A);
+        [TestMethod] public void SBB_B() => SBB(0x98, Register.B);
+        [TestMethod] public void SBB_C() => SBB(0x99, Register.C);
+        [TestMethod] public void SBB_D() => SBB(0x9A, Register.D);
+        [TestMethod] public void SBB_E() => SBB(0x9B, Register.E);
+        [TestMethod] public void SBB_H() => SBB(0x9C, Register.H);
+        [TestMethod] public void SBB_L() => SBB(0x9D, Register.L);
+        [TestMethod] public void SBB_M() => SBB(0x9E, null);
+        [TestMethod] public void SBB_A() => SBB(0x9F, Register.A);
+
         private void MOV(byte opcode, Register destination, Register? source)
         {
             if (source.HasValue)
@@ -431,6 +450,41 @@ namespace Tests
             SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.A }, register == Register.A ? new Flag[] { Flag.S, Flag.P } : new Flag[] { Flag.S }), opcode);
             Assert.AreEqual(register == Register.A ? 0x8E : 0x98, _emulator[Register.A]);
             Assert.IsTrue(_emulator[Flag.S]);
+        }
+
+        private void SUB(byte opcode, Register? register)
+        {
+            if (register.HasValue)
+            {
+                _emulator[register.Value] = 0x40;
+            }
+            else
+            {
+                _emulator[Register.H] = 0x20;
+                _emulator[Register.L] = 0x50;
+                _emulator[0x2050] = 0x40;
+            }
+            _emulator[Register.A] = 0x37;
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.A }, register == Register.A ? new Flag[] { Flag.Z, Flag.P } : new Flag[] { Flag.S }), opcode);
+            Assert.AreEqual(register == Register.A ? 0x00 : 0xF7, _emulator[Register.A]);
+        }
+
+        private void SBB(byte opcode, Register? register)
+        {
+            _emulator[Flag.C] = true;
+            if (register.HasValue)
+            {
+                _emulator[register.Value] = 0x3F;
+            }
+            else
+            {
+                _emulator[Register.H] = 0x20;
+                _emulator[Register.L] = 0x50;
+                _emulator[0x2050] = 0x3F;
+            }
+            _emulator[Register.A] = 0x37;
+            SetProgramAndStep(new ProgramOptions(1, new Register[] { Register.A }, register == Register.A ? new Flag[] { Flag.C, Flag.S, Flag.P } : new Flag[] { Flag.S, Flag.C }), opcode);
+            Assert.AreEqual(register == Register.A ? 0xFF : 0xF7, _emulator[Register.A]);
         }
 
         private void ADC(byte opcode, Register? register)
