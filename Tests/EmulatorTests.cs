@@ -453,6 +453,184 @@ namespace Tests
         [TestMethod] public void CMP_M() => CMP(0xBE, null);
         [TestMethod] public void CMP_A() => CMP(0xBF, Register.A);
 
+        // ------------------ 0xC0 - 0xCF
+
+        [TestMethod] public void RNZ() => new NotImplementedException();
+        [TestMethod] public void POP_B() => POP(0xC1, Register.B);
+        [TestMethod] public void JNZ() => JMP(0xC2, Flag.Z, false);
+        [TestMethod] public void JMP() => JMP(0xC3, null, null);
+        [TestMethod] public void CNZ() => new NotImplementedException();
+        [TestMethod] public void PUSH_B() => PUSH(0xC5, Register.B);
+        [TestMethod]
+        public void ADI()
+        {
+            _emulator[Register.A] = 0x4A;
+
+            SetProgramAndStep(new ProgramOptions(2, new Register[] { Register.A }, new Flag[] { Flag.S, Flag.P, Flag.AC }), 0xC6, 0x59);
+
+            Assert.AreEqual(0xA3, _emulator[Register.A]);
+        }
+        [TestMethod] public void RST_0() => new NotImplementedException();
+        [TestMethod] public void RZ() => new NotImplementedException();
+        [TestMethod] public void RET() => new NotImplementedException();
+        [TestMethod] public void JZ() => JMP(0xCA, Flag.Z, true);
+        [TestMethod, ExpectedException(typeof(InvalidOperationException))] public void Invalid_0xCB() { SetProgramAndStep(new ProgramOptions(), 0xCB); }
+        [TestMethod] public void CZ() => new NotImplementedException();
+        [TestMethod] public void CALL() => new NotImplementedException();
+        [TestMethod]
+        public void ACI()
+        {
+            _emulator[Register.A] = 0x26;
+            _emulator[Flag.C] = true;
+
+            SetProgramAndStep(new ProgramOptions(2, new Register[] { Register.A }, new Flag[] { Flag.P, Flag.C }), 0xCE, 0x57);
+            Assert.AreEqual(0x7E, _emulator[Register.A]);
+        }
+        [TestMethod] public void RST_1() => new NotImplementedException();
+
+
+        // ------------------ 0xD0 - 0xDF
+
+        [TestMethod] public void RNC() => new NotImplementedException();
+        [TestMethod] public void POP_D() => POP(0xD1, Register.D);
+        [TestMethod] public void JNC() => JMP(0xC2, Flag.C, false);
+        [TestMethod] public void OUT() => new NotImplementedException();
+        [TestMethod] public void CNC() => new NotImplementedException();
+        [TestMethod] public void PUSH_D() => PUSH(0xD5, Register.D);
+        [TestMethod]
+        public void SUI()
+        {
+            _emulator[Register.A] = 0x40;
+
+            SetProgramAndStep(new ProgramOptions(2, new Register[] { Register.A }, new Flag[] { Flag.P }), 0xD6, 0x37);
+            Assert.AreEqual(0x09, _emulator[Register.A]);
+        }
+
+        [TestMethod] public void RST_2() => new NotImplementedException();
+        [TestMethod] public void RC() => new NotImplementedException();
+        [TestMethod, ExpectedException(typeof(InvalidOperationException))] public void Invalid_0xD9() { SetProgramAndStep(new ProgramOptions(), 0xD9); }
+        [TestMethod] public void JC() => JMP(0xDA, Flag.C, true);
+        [TestMethod] public void IN() => new NotImplementedException();
+        [TestMethod] public void CC() => new NotImplementedException();
+        [TestMethod, ExpectedException(typeof(InvalidOperationException))] public void Invalid_0xDD() { SetProgramAndStep(new ProgramOptions(), 0xDD); }
+        [TestMethod] public void SBI()
+        {
+            _emulator[Register.A] = 0x37;
+            _emulator[Flag.C] = true;
+
+            SetProgramAndStep(new ProgramOptions(2, new Register[] { Register.A }, new Flag[] { Flag.P, Flag.C }), 0xDE, 0x25);
+            Assert.AreEqual(0x11, _emulator[Register.A]);
+        }
+
+        [TestMethod] public void RST_3() => new NotImplementedException();
+
+        // ------------------ 0xE0 - 0xEF
+
+        [TestMethod] public void RPO() => new NotImplementedException();
+        [TestMethod] public void POP_H() => POP(0xE1, Register.H);
+        [TestMethod] public void JPO() => JMP(0xE2, Flag.P, false);
+        [TestMethod] public void XTHL()
+        {
+            _emulator[Register.H] = 0xA2;
+            _emulator[Register.L] = 0x57;
+            _emulator[0x2095] = 0x38;
+            _emulator[0x2096] = 0x67;
+            _emulator.StackPointer = 0x2095;
+
+            SetProgramAndStep(new ProgramOptions(1, Register.H, Register.L), 0xE3);
+
+            Assert.AreEqual(0x67, _emulator[Register.H]);
+            Assert.AreEqual(0x38, _emulator[Register.L]);
+            Assert.AreEqual(0x57, _emulator[0x2095]);
+            Assert.AreEqual(0xA2, _emulator[0x2096]);
+        }
+        [TestMethod] public void CPO() => new NotImplementedException();
+        [TestMethod] public void PUSH_H() => PUSH(0xE5, Register.H);
+        [TestMethod] public void ANI()
+        {
+            _emulator[Register.A] = 0xA3;
+            SetProgramAndStep(new ProgramOptions(2, new Register[] { Register.A }, new Flag[] { Flag.S, Flag.AC }), 0xE6, 0x97);
+
+            Assert.AreEqual(0x83, _emulator[Register.A]);
+        }
+        [TestMethod] public void RST_4() => new NotImplementedException();
+        [TestMethod] public void RPE() => new NotImplementedException();
+        //[TestMethod] public void PCHL() => CompileAndCompare(@"PCHL", 0xE9);
+        [TestMethod] public void JPE() => JMP(0xEA, Flag.P, true);
+        //[TestMethod] public void XCHG() => CompileAndCompare(@"XCHG", 0xEB);
+        [TestMethod] public void CPE() => new NotImplementedException();
+        [TestMethod, ExpectedException(typeof(InvalidOperationException))] public void Invalid_0xED() { SetProgramAndStep(new ProgramOptions(), 0xED); }
+        //[TestMethod] public void XRI() => CompileAndCompare(@"XRI 92H", 0xEE, 0x92);
+        [TestMethod] public void RST_5() => new NotImplementedException();
+
+        private void POP(byte opcode, Register? registerPair)
+        {
+            _emulator.StackPointer = 0x2090;
+            _emulator[0x2090] = 0xF5;
+            _emulator[0x2091] = 0x01;
+
+            ProgramOptions options;
+
+            if (registerPair.HasValue)
+            {
+                options = new ProgramOptions(1, registerPair.Value, registerPair.Value + 1);
+            }
+            else
+            {
+                // PSW will be modified
+                options = new ProgramOptions(1, registerPair.Value, registerPair.Value + 1);
+            }
+
+            SetProgramAndStep(options, opcode);
+            Assert.AreEqual(0x2092, _emulator.StackPointer);
+
+            if (registerPair.HasValue)
+            {
+                Assert.AreEqual(0x01, _emulator[registerPair.Value]);
+                Assert.AreEqual(0xF5, _emulator[registerPair.Value + 1]);
+            }
+        }
+
+        private void PUSH(byte opcode, Register? registerPair)
+        {
+            _emulator.StackPointer = 0x2099;
+
+
+            ProgramOptions options;
+
+            if (registerPair.HasValue)
+            {
+                _emulator[registerPair.Value] = 0x32;
+                _emulator[registerPair.Value + 1] = 0x57;
+                options = new ProgramOptions(1);
+            }
+            else
+            {
+                // PSW will be modified
+                options = new ProgramOptions(1, registerPair.Value, registerPair.Value + 1);
+            }
+
+            SetProgramAndStep(options, opcode);
+            Assert.AreEqual(0x2097, _emulator.StackPointer);
+
+            if (registerPair.HasValue)
+            {
+                Assert.AreEqual(0x57, _emulator[0x2097]);
+                Assert.AreEqual(0x32, _emulator[0x2098]);
+            }
+        }
+
+        private void JMP(byte opcode, Flag? flag, bool? val)
+        {
+            if (flag.HasValue)
+            {
+                _emulator[flag.Value] = val.Value;
+            }
+            SetProgramAndStep(new ProgramOptions(0x2050 - 0x400), opcode, 0x50, 0x20);
+
+            Assert.AreEqual(0x2050, _emulator.ProgramCounter);
+        }
+
         private void MOV(byte opcode, Register destination, Register? source)
         {
             if (source.HasValue)
@@ -485,8 +663,8 @@ namespace Tests
                 _emulator[0x2050] = 0x82;
             }
             _emulator[Register.A] = 0x54;
-            SetProgramAndStep(new ProgramOptions(1, 
-                register == Register.A ? new Register[] { } : new Register[] { Register.A }, 
+            SetProgramAndStep(new ProgramOptions(1,
+                register == Register.A ? new Register[] { } : new Register[] { Register.A },
                 register == Register.A ? new Flag[] { Flag.AC } : new Flag[] { Flag.Z, Flag.AC, Flag.P }), opcode);
             Assert.AreEqual(register == Register.A ? 0x54 : 0x00, _emulator[Register.A]);
         }
@@ -804,20 +982,43 @@ namespace Tests
         public void SortNumbers()
         {
             var program = new byte[] {
-                0x06, 0x09, 0x21, 0x00, 0x30, 0x0E, 0x09, 0x7E,
-                0x23, 0xBE, 0xDA, 0x15, 0x00, 0xCA, 0x15, 0x00,
-                0x56, 0x77, 0x2B, 0x72, 0x23, 0x0D, 0xC2, 0x07,
-                0x00, 0x05, 0xC2, 0x02, 0x00, 0x76
+                0x06, 0x09, // MVI B, 09
+                // START: 
+                0x21, 0x00, 0x30, // LXI H, 3000H
+                0x0E, 0x09, // MVI C, 09H
+                // BACK: 
+                0x7E, // MOV A, M
+                0x23, // INX H
+                0xBE, // CMP M
+                0xDA, 0x15, 0x00, // JC SKIP
+                0xCA, 0x15, 0x00, // JZ SKIP
+                0x56, // MOV D, M
+                0x77, // MOV M, A
+                0x2B, // DCX H
+                0x72, // MOV M, D
+                0x23, // INX H
+                // SKIP:
+                0x0D, // DCR C
+                0xC2, 0x07,0x00, // JNZ BACK
+                0x05, // DCR B
+                0xC2, 0x02, 0x00, // JNZ START
+                0x76
             };
 
-            _emulator.SetMemory(0x400, program);
-            _emulator.SetMemory(0x3000, 0x12, 0x01, 0x05, 0xAD, 0x03, 0x56, 0x1A, 0xD2, 0x00, 0x44);
-            _emulator.ProgramCounter = 0x400;
+            _emulator.SetMemory(0x00, program);
+            var numbers = new byte[] { 0x12, 0x01, 0x05, 0xAD, 0x03, 0x56, 0x1A, 0xD2, 0x00, 0x44 };
+            _emulator.SetMemory(0x3000, numbers);
+            _emulator.ProgramCounter = 0x00;
 
             _emulator.Run();
 
-            Assert.AreEqual(0x00, _emulator[0x3000]);
-            Assert.AreEqual(0x01, _emulator[0x3001]);
+            var list = new List<byte>(numbers);
+            list.Sort();
+
+            for(var i = 0; i < list.Count; i++)
+            {
+                Assert.AreEqual(list[i], _emulator[(ushort)(0x3000 + i)]);
+            }
         }
     }
 }

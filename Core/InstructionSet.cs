@@ -5,7 +5,17 @@ namespace Core
     static class InstructionSet
     {
         [Instruction(0xCE, OperandType.Data8Bit, Description = "Add immediate to accumulator with carry")]
-        public static readonly object ACI;
+        public static readonly Action<Emulator, byte> ACI = (emulator, data) =>
+        {
+            var current = emulator[Register.A] + (emulator[Flag.C] ? 1 : 0);
+
+            emulator[Flag.AC] = ((byte)current).AuxiliaryCarryFlag(data, true);
+            emulator[Flag.C] = (current + data) > 0xFF;
+            emulator[Register.A] = (byte)(current + data);
+            emulator[Flag.P] = emulator[Register.A].ParityFlag();
+            emulator[Flag.Z] = emulator[Register.A] == 0;
+            emulator[Flag.S] = emulator[Register.A].SignFlag();
+        };
 
         [Instruction(0x88, OperandType.RegisterOrMemory, Description = "Add register to accumulator with carry")] // Distance = 1
         public static readonly Action<Emulator, Register?> ADC = (emulator, register) =>
@@ -22,8 +32,20 @@ namespace Core
             IncrementSourceBy(emulator, Register.A, register.HasValue ? emulator[register.Value] : emulator.GetHLMemoryValue());
         };
 
-        [Instruction(0xC6, OperandType.Data8Bit)]
-        public static readonly object ADI;
+        [Instruction(0xC6, OperandType.Data8Bit, Description = "Add immediate to accumulator")]
+        public static readonly Action<Emulator, byte> ADI = (emulator, data) =>
+        {
+            var current = emulator[Register.A];
+
+            emulator[Flag.AC] = current.AuxiliaryCarryFlag(data, true);
+            emulator[Flag.C] = (current + data) > 0xFF;
+            current += data;
+            emulator[Flag.P] = current.ParityFlag();
+            emulator[Flag.Z] = current == 0;
+            emulator[Flag.S] = current.SignFlag();
+
+            emulator[Register.A] = current;
+        };
 
         [Instruction(0xA0, OperandType.RegisterOrMemory, Description = "Logical AND with accumulator")]
         public static readonly Action<Emulator, Register?> ANA = (emulator, register) =>
@@ -40,8 +62,19 @@ namespace Core
             emulator[Register.A] = current;
         };
 
-        [Instruction(0xE6, OperandType.Data8Bit)]
-        public static readonly object ANI;
+        [Instruction(0xE6, OperandType.Data8Bit, Description = "AND immediate with accumulator")]
+        public static readonly Action<Emulator, byte> ANI = (emulator, data) =>
+        {
+            data &= emulator[Register.A];
+
+            emulator[Flag.AC] = true;
+            emulator[Flag.C] = false;
+            emulator[Flag.P] = data.ParityFlag();
+            emulator[Flag.Z] = data == 0;
+            emulator[Flag.S] = data.SignFlag();
+
+            emulator[Register.A] = data;
+        };
 
         [Instruction(0xCD, OperandType.LabelAs16BitAddress)]
         public static readonly object CALL;
@@ -167,32 +200,32 @@ namespace Core
             }
         };
 
-        [Instruction(0xC3, OperandType.LabelAs16BitAddress)]
-        public static readonly object JMP;
+        [Instruction(0xC3, OperandType.LabelAs16BitAddress, Description = "Jump unconditionally")]
+        public static readonly Action<Emulator, byte, byte> JMP = (emulator, lower, upper) => JumpTo(emulator, lower, upper, true);
 
-        [Instruction(0xDA, OperandType.LabelAs16BitAddress)]
-        public static readonly object JC;
+        [Instruction(0xDA, OperandType.LabelAs16BitAddress, Description = "Jump on Carry")]
+        public static readonly Action<Emulator, byte, byte> JC = (emulator, lower, upper) => JumpTo(emulator, lower, upper, emulator[Flag.C]);
 
-        [Instruction(0xD2, OperandType.LabelAs16BitAddress)]
-        public static readonly object JNC;
+        [Instruction(0xD2, OperandType.LabelAs16BitAddress, Description = "Jump with no Carry")]
+        public static readonly Action<Emulator, byte, byte> JNC = (emulator, lower, upper) => JumpTo(emulator, lower, upper, !emulator[Flag.C]);
 
-        [Instruction(0xF2, OperandType.LabelAs16BitAddress)]
-        public static readonly object JP;
+        [Instruction(0xF2, OperandType.LabelAs16BitAddress, Description = "Jump on positive")]
+        public static readonly Action<Emulator, byte, byte> JP = (emulator, lower, upper) => JumpTo(emulator, lower, upper, emulator[Flag.S]);
 
-        [Instruction(0xFA, OperandType.LabelAs16BitAddress)]
-        public static readonly object JM;
+        [Instruction(0xFA, OperandType.LabelAs16BitAddress, Description = "Jump on minus")]
+        public static readonly Action<Emulator, byte, byte> JM = (emulator, lower, upper) => JumpTo(emulator, lower, upper, !emulator[Flag.S]);
 
-        [Instruction(0xEA, OperandType.LabelAs16BitAddress)]
-        public static readonly object JPE;
+        [Instruction(0xEA, OperandType.LabelAs16BitAddress, Description = "Jump on Parity Even")]
+        public static readonly Action<Emulator, byte, byte> JPE = (emulator, lower, upper) => JumpTo(emulator, lower, upper, emulator[Flag.P]);
 
-        [Instruction(0xE2, OperandType.LabelAs16BitAddress)]
-        public static readonly object JPO;
+        [Instruction(0xE2, OperandType.LabelAs16BitAddress, Description = "Jump on Parity Odd")]
+        public static readonly Action<Emulator, byte, byte> JPO = (emulator, lower, upper) => JumpTo(emulator, lower, upper, !emulator[Flag.P]);
 
-        [Instruction(0xCA, OperandType.LabelAs16BitAddress)]
-        public static readonly object JZ;
+        [Instruction(0xCA, OperandType.LabelAs16BitAddress, Description = "Jump on Zero")]
+        public static readonly Action<Emulator, byte, byte> JZ = (emulator, lower, upper) => JumpTo(emulator, lower, upper, emulator[Flag.Z]);
 
-        [Instruction(0xC2, OperandType.LabelAs16BitAddress)]
-        public static readonly object JNZ;
+        [Instruction(0xC2, OperandType.LabelAs16BitAddress, Description = "Jump on No Zero")]
+        public static readonly Action<Emulator, byte, byte> JNZ = (emulator, lower, upper) => JumpTo(emulator, lower, upper, !emulator[Flag.Z]);
 
         [Instruction(0x3A, OperandType.Data16Bit, Description = "Load accumulator direct")]
         public static readonly Action<Emulator, byte, byte> LDA = (emulator, lower, upper) =>
@@ -322,11 +355,44 @@ namespace Core
         [Instruction(0xE9, OperandType.None)]
         public static readonly object PCHL;
 
-        [Instruction(0xC1, OperandType.RegisterPairOrProgramStatusWord)]
-        public static readonly object POP;
+        [Instruction(0xC1, OperandType.RegisterPairOrProgramStatusWord, Description = "Pop off stack to register pair")]
+        public static readonly Action<Emulator, Register?> POP = (emulator, register) =>
+        {
+            var value = emulator[emulator.StackPointer];
 
-        [Instruction(0xC5, OperandType.RegisterPairOrProgramStatusWord)]
-        public static readonly object PUSH;
+            if (register.HasValue)
+            {
+                emulator[register.Value + 1] = value;
+            }
+
+            emulator.StackPointer++;
+            value = emulator[emulator.StackPointer];
+
+            if (register.HasValue)
+            {
+                emulator[register.Value] = value;
+            }
+
+            emulator.StackPointer++;
+        };
+
+        [Instruction(0xC5, OperandType.RegisterPairOrProgramStatusWord, Description = "Push register pair onto stack")]
+        public static readonly Action<Emulator, Register?> PUSH = (emulator, register) =>
+        {
+            emulator.StackPointer--;
+
+            if (register.HasValue)
+            {
+                emulator[emulator.StackPointer] = emulator[register.Value];
+            }
+
+            emulator.StackPointer--;
+
+            if (register.HasValue)
+            {
+                emulator[emulator.StackPointer] = emulator[register.Value + 1];
+            }
+        };
 
         [Instruction(0x17, OperandType.None)]
         public static readonly object RAL;
@@ -382,8 +448,13 @@ namespace Core
             emulator[Flag.C] = false;
         };
 
-        [Instruction(0xDE, OperandType.Data8Bit)]
-        public static readonly object SBI;
+        [Instruction(0xDE, OperandType.Data8Bit, Description = "Subtract immediate with borrow")]
+        public static readonly Action<Emulator, byte> SBI = (emulator, value) =>
+        {
+            var decrement = (byte)(value + (emulator[Flag.C] ? 1 : 0));
+            IncrementSourceBy(emulator, Register.A, -decrement);
+            emulator[Flag.C] = false;
+        };
 
         [Instruction(0x22, OperandType.Data16Bit)]
         public static readonly Action<Emulator, byte, byte> SHLD = (emulator, lower, upper) =>
@@ -406,8 +477,12 @@ namespace Core
             emulator[(ushort)(address)] = emulator[Register.A];
         };
 
-        [Instruction(0x02, OperandType.RegisterBD)]
-        public static readonly object STAX;
+        [Instruction(0x02, OperandType.RegisterBD, Description = "Store accumulator indirect")]
+        public static readonly Action<Emulator, Register> STAX = (emulator, register) =>
+        {
+            var address = (emulator[register] << 8) + emulator[register + 1];
+            emulator[(ushort)address] = emulator[Register.A];
+        };
 
         [Instruction(0x37, OperandType.None)]
         public static readonly Action<Emulator> STC = emulator => emulator[Flag.C] = true;
@@ -418,8 +493,11 @@ namespace Core
             IncrementSourceBy(emulator, Register.A, -(register.HasValue ? emulator[register.Value] : emulator.GetHLMemoryValue()));
         };
 
-        [Instruction(0xD6, OperandType.Data8Bit)]
-        public static readonly object SUI;
+        [Instruction(0xD6, OperandType.Data8Bit, Description = "Subtract immediate from accumulator")]
+        public static readonly Action<Emulator, byte> SUI = (emulator, value) =>
+        {
+            IncrementSourceBy(emulator, Register.A, -value);
+        };
 
         [Instruction(0xEB, OperandType.None)]
         public static readonly object XCHG;
@@ -443,11 +521,26 @@ namespace Core
         public static readonly object XRI;
 
         [Instruction(0xE3, OperandType.None)]
-        public static readonly object XTHL;
+        public static readonly Action<Emulator> XTHL = emulator =>
+        {
+            var stackPointer = emulator[emulator.StackPointer];
+            emulator[emulator.StackPointer] = emulator[Register.L];
+            emulator[Register.L] = stackPointer;
+
+            stackPointer = emulator[(ushort)(emulator.StackPointer + 1)];
+            emulator[(ushort)(emulator.StackPointer + 1)] = emulator[Register.H];
+            emulator[Register.H] = stackPointer;
+        };
 
         private static void CopyFromSourceToDestination(Emulator emulator, Register? source, Register destination)
         {
             emulator[destination] = source.HasValue ? emulator[source.Value] : emulator.GetHLMemoryValue();
+        }
+
+        private static void JumpTo(Emulator emulator, byte lower, byte upper, bool condition)
+        {
+            ushort address = (ushort)((upper << 8) + lower);
+            emulator.ProgramCounter = condition ? address : emulator.ProgramCounter;
         }
 
         private static void IncrementSourceBy(Emulator emulator, Register? register, int increment)
@@ -455,7 +548,7 @@ namespace Core
             var memoryAddress = emulator.Get16BitValue(Register.H, Register.L);
             var current = register.HasValue ? emulator[register.Value] : emulator[memoryAddress];
 
-            emulator[Flag.AC] = current.AuxiliaryCarryFlag(1, true);
+            emulator[Flag.AC] = current.AuxiliaryCarryFlag((byte)(increment < 0 ? (-increment) : increment), increment > 0);
             current = (byte)(current + increment);
             emulator[Flag.P] = current.ParityFlag();
             emulator[Flag.Z] = current == 0;

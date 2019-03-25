@@ -22,7 +22,7 @@
             return (value & 0x80) == 0x80;
         }
 
-        public static bool AuxiliaryCarryFlag(this byte a, byte b, bool increment)
+        public static bool AuxiliaryCarryFlag(this byte a, ushort b, bool increment)
         {
             var valueLower = a & 0xF;
             var previousLower = b & 0xF;

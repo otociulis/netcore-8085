@@ -147,6 +147,7 @@ namespace Core
                             InstructionSet.Add(attribute.Code, metadata);
                             break;
                         case OperandType.Data16Bit:
+                        case OperandType.LabelAs16BitAddress:
                             InstructionSet.Add(attribute.Code, metadata);
                             break;
                         case OperandType.Register:
@@ -169,6 +170,7 @@ namespace Core
                             }
                             break;
                         case OperandType.RegisterPairOrStackPointer:
+                        case OperandType.RegisterPairOrProgramStatusWord:
                             InstructionSet.Add(attribute.Code, new InstructionMetadata(metadata, Register.B));
                             InstructionSet.Add((byte)(attribute.Code + 0x10), new InstructionMetadata(metadata, Register.D));
                             InstructionSet.Add((byte)(attribute.Code + 0x20), new InstructionMetadata(metadata, Register.H));
